@@ -2192,25 +2192,16 @@ function renderAccounts(){
   h+="</tbody>";
   document.getElementById("accountTable").innerHTML=h;
 }
-/* 是否已存在「系統管理員」（排除指定帳號自身）；全系統僅允許 1 位 */
-function adminTakenBy(excludeUsername){
-  return loadAccounts().some(a=>a.role==="admin" && a.username.toLowerCase()!==String(excludeUsername||"").toLowerCase());
-}
 function openAccountModal(username){
   EDIT_CTX=null;
   const acc=username?loadAccounts().find(a=>a.username===username):null;
-  const adminTaken=adminTakenBy(acc?acc.username:"");
-  const roleOpts=Object.keys(ROLES).map(r=>{
-    const dis=(r==="admin")&&adminTaken;
-    return `<option value="${r}" ${acc&&acc.role===r?"selected":""} ${dis?"disabled":""}>${ROLES[r].name}${dis?"（已有管理員，限 1 位）":""}</option>`;
-  }).join("");
+  const roleOpts=Object.keys(ROLES).map(r=>`<option value="${r}" ${acc&&acc.role===r?"selected":""}>${ROLES[r].name}</option>`).join("");
   setModal(username?"編輯帳號":"新增帳號",`
     <div class="form-grid">
       <div><label>帳號（登入用）${username?'':' <span class="req">*</span>'}</label>
         <input id="ac_user" value="${esc(acc?acc.username:'')}" ${username?'readonly style="background:var(--gray-bg)"':''} placeholder="例：teacher01"></div>
       <div><label>顯示姓名 <span class="req">*</span></label><input id="ac_name" value="${esc(acc?acc.name:'')}"></div>
-      <div><label>角色 <span class="req">*</span></label><select id="ac_role">${roleOpts}</select>
-        ${adminTaken?'<div class="hint">系統僅允許一位「系統管理員」，如需轉移請先將原管理員改為其他角色。</div>':''}</div>
+      <div><label>角色 <span class="req">*</span></label><select id="ac_role">${roleOpts}</select></div>
       <div><label>密碼 ${username?'（留空＝不變更）':'<span class="req">*</span>'}</label><input id="ac_pass" type="password" placeholder="${username?'留空則沿用原密碼':'至少 4 碼'}"></div>
     </div>`,
     [{txt:"取消",cls:"btn",fn:closeModal},{txt:"儲存",cls:"btn primary",fn:()=>saveAccount(username)}]);
@@ -2219,8 +2210,6 @@ async function saveAccount(username){
   const u=val("ac_user"), name=val("ac_name"), role=val("ac_role");
   const pass=document.getElementById("ac_pass").value;
   if(!u||!name){ toast("請填寫帳號與姓名",true); return; }
-  // 全系統僅允許 1 位系統管理員
-  if(role==="admin" && adminTakenBy(username)){ toast("系統僅允許一位系統管理員，無法再指派",true); return; }
   let list=loadAccounts(); let savedAcc;
   if(username){
     const acc=list.find(a=>a.username===username);
