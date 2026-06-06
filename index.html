@@ -642,6 +642,18 @@
           <div id="gasStatus" class="hint" style="margin-top:8px"></div>
           <div class="alert warn" style="margin-top:12px">⚠ 使用個人 Gmail 的 Drive：上傳檔案會設為「知道連結者可檢視」。本系統含學生影像等敏感個資，請務必<b>妥善保管網址、限定人員存取</b>；正式上線強烈建議改用學校 Google Workspace 帳號並設定資料夾權限。</div>
         </div>
+        <div class="card card-pad" style="margin-bottom:14px" id="syncCard">
+          <div class="section-title" style="margin-top:0"><span data-icon="cloud"></span>多裝置線上同步（帳號 + 全部資料）</div>
+          <p class="hint">啟用後，<b>帳號名單與所有紀錄改存雲端</b>，電腦、手機只要用<b>同一個 GAS 網址</b>並登入，就看到同一份資料。使用上方同一個 /exec 網址，無需另外部署。</p>
+          <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:var(--fs-sm)">
+            <input type="checkbox" id="syncToggle" onchange="setSyncEnabled(this.checked)" style="width:auto"> 啟用線上同步（登入改用雲端帳號驗證）
+          </label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn primary" onclick="initCloud()">⬆ 初始化雲端（首次：上傳本機資料）</button>
+          </div>
+          <div id="syncStatus" class="hint" style="margin-top:8px"></div>
+          <div class="alert warn" style="margin-top:12px">⚠ 第一次只需在<b>一台</b>裝置按「初始化雲端」上傳資料；其他裝置只要貼相同網址、勾選啟用同步，再用你的帳號登入即可，<b>不要</b>重複初始化。含學生個資，請限定人員、妥善保管網址。</div>
+        </div>
         <div class="card card-pad" style="margin-bottom:14px">
           <div class="section-title" style="margin-top:0"><span data-icon="lock"></span>角色權限對照</div>
           <div class="table-wrap"><table id="roleTable"></table></div>
@@ -824,8 +836,10 @@ function daysUntil(dateStr){ if(!dateStr)return null; const d=new Date(dateStr);
 function toast(msg,err){ const el=document.getElementById("toast"); el.textContent=msg; el.className="toast show"+(err?" err":""); setTimeout(()=>el.className="toast",2400); }
 
 function audit(action,detail){
-  DB.audit.unshift({id:uid("a"),time:nowStr(),user:SESSION.name,role:ROLES[SESSION.role].name,action,detail});
+  const rec={id:uid("a"),time:nowStr(),user:SESSION.name,role:ROLES[SESSION.role].name,action,detail};
+  DB.audit.unshift(rec);
   save(LS.audit,DB.audit);
+  syncPush("audit",rec);
 }
 
 /* 自動產生事件編號 EV-YYYYMMDD-序號 */
@@ -1043,6 +1057,65 @@ async function gasCall(payload){
   try{ return JSON.parse(t); }catch(e){ throw new Error("回應非 JSON（請確認部署為「所有人」可存取）"); }
 }
 function fileToB64(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]); r.onerror=()=>rej(r.error); r.readAsDataURL(f); }); }
+
+/* ====== 多裝置線上同步（沿用同一個 GAS /exec 與 gasCall）====== */
+const SYNC_KEY="fir_sync_on", TOKEN_KEY="fir_token";
+const syncOn=()=>load(SYNC_KEY,false);
+let TOKEN=load(TOKEN_KEY,"");
+function setToken(t){ TOKEN=t||""; save(TOKEN_KEY,TOKEN); }
+/* 從雲端拉全部資料覆蓋本機快取 */
+async function syncPull(){
+  if(!syncOn()||!gasUrl()||!TOKEN) return false;
+  const r=await gasCall({action:"pull",token:TOKEN});
+  if(!r.ok){ if(r.auth===false){ setToken(""); } return false; }
+  const d=r.data||{};
+  save(LS.teachers,d.teachers||[]); save(LS.events,d.events||[]); save(LS.counsel,d.counsel||[]);
+  save(LS.students,d.students||[]); save(LS.stuEvents,d.stuEvents||[]); save(LS.audit,d.audit||[]);
+  save(LS.checklist,d.checklist||{});
+  if(Array.isArray(d.accounts)) saveAccounts(d.accounts);
+  return true;
+}
+/* 逐筆推送（新增/編輯）。syncPush(entity,record) 或 syncPush(entity,id,record) */
+function syncPush(entity,a,b){
+  if(!syncOn()||!gasUrl()||!TOKEN) return;
+  const id=(b===undefined)?(a&&a.id):a;
+  const record=(b===undefined)?a:b;
+  if(id==null) return;
+  gasCall({action:"push",token:TOKEN,entity,id,record})
+    .then(r=>{ if(!r.ok){ toast(r.auth===false?"雲端登入已逾時，請重新登入":"雲端同步失敗："+(r.error||""),true); } })
+    .catch(()=>toast("雲端同步失敗（網路）",true));
+}
+function syncRemove(entity,id){
+  if(!syncOn()||!gasUrl()||!TOKEN) return;
+  gasCall({action:"remove",token:TOKEN,entity,id})
+    .then(r=>{ if(!r.ok&&r.auth===false) toast("雲端登入已逾時，請重新登入",true); })
+    .catch(()=>{});
+}
+/* 首次初始化：把本機帳號與資料整批上傳到空白雲端 */
+async function initCloud(){
+  if(!gasUrl()){ toast("請先在上方設定並儲存 GAS 網址",true); return; }
+  const st=document.getElementById("syncStatus"); if(st) st.textContent="檢查雲端狀態…";
+  try{
+    const s=await gasCall({action:"status"});
+    if(!s.ok){ toast("無法連線後端："+(s.error||""),true); return; }
+    if(s.hasAccounts){
+      if(st) st.textContent="雲端已有資料。若要改用雲端，請勾選「啟用線上同步」後用雲端帳號登入。";
+      toast("雲端已初始化過，無法重複上傳",true); return;
+    }
+    if(!confirm("即將把『本機目前的帳號與全部資料』上傳到雲端作為初始內容，並啟用線上同步。確定？")) return;
+    const r=await gasCall({action:"init",accounts:loadAccounts(),
+      data:{teachers:DB.teachers,events:DB.events,counsel:DB.counsel,students:DB.students,stuEvents:DB.stuEvents,audit:DB.audit,checklist:DB.checklist}});
+    if(r.ok){ save(SYNC_KEY,true); audit("初始化雲端同步","上傳 "+(r.count||0)+" 筆"); if(st) st.textContent="✔ 已上傳 "+(r.count||0)+" 筆並啟用同步。其他裝置請用相同網址＋勾選同步後，以你的帳號登入即可看到同一份資料。"; toast("雲端初始化完成，已啟用線上同步"); }
+    else toast("初始化失敗："+(r.error||""),true);
+  }catch(e){ toast("初始化失敗："+e.message,true); }
+}
+function setSyncEnabled(on){
+  save(SYNC_KEY,!!on);
+  audit("線上同步設定",on?"啟用":"停用");
+  const st=document.getElementById("syncStatus");
+  if(st) st.textContent=on?"已啟用線上同步：登入將改用雲端帳號驗證，資料即時與其他裝置同步。":"已停用，改回本機模式（資料僅存此瀏覽器）。";
+  toast(on?"已啟用線上同步":"已停用線上同步");
+}
 function saveGasUrl(){
   const u=val("gasUrlInput");
   if(u && !/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){ if(!confirm("網址看起來不像 GAS 的 /exec 結尾，仍要儲存嗎？")) return; }
@@ -1095,8 +1168,23 @@ function showAuthPanel(which){
 async function doLogin(){
   const u=val("loginUser"), p=document.getElementById("loginPass").value;
   if(!u||!p){ toast("請輸入帳號與密碼",true); return; }
-  const acc=loadAccounts().find(a=>a.username.toLowerCase()===u.toLowerCase());
   const ph=await hashPw(p);
+  // 線上模式：先用雲端帳號驗證
+  if(syncOn() && gasUrl()){
+    try{
+      const r=await gasCall({action:"login",username:u,passHash:ph});
+      if(r.ok){
+        setToken(r.token);
+        SESSION={username:r.user.username,role:r.user.role,name:r.user.name,loginTime:nowStr()};
+        save(LS.session,SESSION);
+        await startApp();
+        audit("登入系統（雲端）","帳號："+r.user.username+"（"+ROLES[r.user.role].name+"）");
+        return;
+      } else { toast(r.error||"帳號或密碼錯誤",true); return; }
+    }catch(e){ toast("雲端連線失敗，改用本機帳號登入",true); /* 落回本機 */ }
+  }
+  // 本機模式
+  const acc=loadAccounts().find(a=>a.username.toLowerCase()===u.toLowerCase());
   if(!acc||acc.passHash!==ph){ toast("帳號或密碼錯誤",true); return; }
   SESSION={username:acc.username,role:acc.role,name:acc.name,loginTime:nowStr()};
   save(LS.session,SESSION);
@@ -1117,10 +1205,25 @@ async function doSetup(){
 }
 function doLogout(){
   if(SESSION) audit("登出系統","");
+  if(syncOn() && gasUrl() && TOKEN){ gasCall({action:"logout",token:TOKEN}).catch(()=>{}); }
+  setToken("");
   localStorage.removeItem(LS.session);
   location.reload();
 }
-function startApp(){
+function backToLogin(msg){
+  localStorage.removeItem(LS.session); SESSION=null;
+  document.getElementById("app").style.display="none";
+  document.getElementById("loginScreen").style.display="";
+  showAuthPanel(loadAccounts().length>0?"login":"setup");
+  if(msg) toast(msg,true);
+}
+async function startApp(){
+  // 線上模式：先把雲端最新資料拉下來覆蓋本機快取
+  if(syncOn() && gasUrl()){
+    if(!TOKEN){ backToLogin("請登入以連線雲端"); return; }
+    let pulled=false; try{ pulled=await syncPull(); }catch(e){}
+    if(!pulled && !TOKEN){ backToLogin("登入已逾時，請重新登入"); return; } // token 失效
+  }
   reloadDB();
   document.getElementById("loginScreen").style.display="none";
   document.getElementById("app").style.display="block";
@@ -1307,16 +1410,17 @@ function saveTeacher(id){
   const name=val("t_name"); if(!name){toast("請輸入教師姓名",true);return;}
   const data={name,subject:val("t_subject"),years:val("t_years"),title:val("t_title"),
     classOf:val("t_class"),contact:val("t_contact"),note:val("t_note")};
-  if(id){ const t=DB.teachers.find(x=>x.id===id); Object.assign(t,data,{updatedBy:SESSION.name,updatedAt:nowStr()});
+  let saved;
+  if(id){ const t=DB.teachers.find(x=>x.id===id); Object.assign(t,data,{updatedBy:SESSION.name,updatedAt:nowStr()}); saved=t;
     audit("編輯教師",name);
-  } else { data.id=uid("t"); data.createdBy=SESSION.name; data.createdAt=nowStr(); DB.teachers.push(data); audit("新增教師",name); }
-  persist(); initSelects(); renderTeachers(); closeModal(); toast("教師資料已儲存");
+  } else { data.id=uid("t"); data.createdBy=SESSION.name; data.createdAt=nowStr(); DB.teachers.push(data); saved=data; audit("新增教師",name); }
+  persist(); syncPush("teachers",saved); initSelects(); renderTeachers(); closeModal(); toast("教師資料已儲存");
 }
 function deleteTeacher(id){
   const t=DB.teachers.find(x=>x.id===id);
   const evCount=DB.events.filter(e=>e.teacherId===id).length;
   confirmModal(`確定刪除教師「${esc(t.name)}」？`+(evCount?`<div class="hint warn">注意：此教師仍有 ${evCount} 筆事件紀錄，刪除教師不會刪除事件，但事件將顯示為未指定。</div>`:""),
-    ()=>{ DB.teachers=DB.teachers.filter(x=>x.id!==id); persist(); audit("刪除教師",t.name); initSelects(); renderTeachers(); toast("已刪除"); });
+    ()=>{ DB.teachers=DB.teachers.filter(x=>x.id!==id); persist(); syncRemove("teachers",id); audit("刪除教師",t.name); initSelects(); renderTeachers(); toast("已刪除"); });
 }
 
 /* =========================================================
@@ -1424,21 +1528,22 @@ function saveEvent(id){
     recorder:val("e_recorder"),type:val("e_type"),severity:val("e_sev"),fact,impact,
     evidence:val("e_evidence"),handle:val("e_handle"),followDate:val("e_follow"),
     status:val("e_status"),note:val("e_note"),secret:document.getElementById("e_secret").checked};
+  let saved;
   if(id){ const e=DB.events.find(x=>x.id===id);
     e.history=e.history||[]; e.history.push({by:SESSION.name,at:nowStr(),note:"編輯事件"});
-    Object.assign(e,data); audit("編輯事件",data.no+"｜"+teacherName(teacherId));
+    Object.assign(e,data); saved=e; audit("編輯事件",data.no+"｜"+teacherName(teacherId));
   } else {
     data.id=CUR_EVENT_ID||uid("e"); data.recorderUser=SESSION.name; data.createdAt=nowStr();
     data.history=[{by:SESSION.name,at:nowStr(),note:"建立事件"}];
-    DB.events.push(data); audit("新增事件",data.no+"｜"+teacherName(teacherId));
+    DB.events.push(data); saved=data; audit("新增事件",data.no+"｜"+teacherName(teacherId));
   }
   if(EDIT_CTX) EDIT_CTX.saved=true;
-  persist(); renderEvents(); closeModal(); toast("事件已儲存");
+  persist(); syncPush("events",saved); renderEvents(); closeModal(); toast("事件已儲存");
 }
 function deleteEvent(id){
   const e=DB.events.find(x=>x.id===id);
   confirmModal(`確定刪除事件「${esc(e.no)}」？此操作將留下稽核紀錄。`,
-    ()=>{ DB.events=DB.events.filter(x=>x.id!==id); attDelByOwner("event:"+id); persist(); audit("刪除事件",e.no); renderEvents(); toast("已刪除"); });
+    ()=>{ DB.events=DB.events.filter(x=>x.id!==id); attDelByOwner("event:"+id); persist(); syncRemove("events",id); audit("刪除事件",e.no); renderEvents(); toast("已刪除"); });
 }
 function viewEvent(id){
   const e=DB.events.find(x=>x.id===id);
@@ -1591,13 +1696,14 @@ function saveCounsel(id){
   const eventId=val("c_event"); if(!eventId){toast("請選擇對應事件",true);return;}
   const data={eventId,date:val("c_date"),staff:val("c_staff"),resp:val("c_resp"),goal:val("c_goal"),
     measure:val("c_measure"),nextDate:val("c_next"),cooperate:val("c_coop"),result:val("c_result"),refer:!!val("c_refer")};
-  if(id){ Object.assign(DB.counsel.find(x=>x.id===id),data,{updatedBy:SESSION.name,updatedAt:nowStr()}); audit("編輯輔導紀錄",data.date);}
-  else { data.id=CUR_COUNSEL_ID||uid("c"); data.createdBy=SESSION.name; data.createdAt=nowStr(); DB.counsel.push(data); audit("新增輔導紀錄",data.date);}
+  let saved;
+  if(id){ saved=DB.counsel.find(x=>x.id===id); Object.assign(saved,data,{updatedBy:SESSION.name,updatedAt:nowStr()}); audit("編輯輔導紀錄",data.date);}
+  else { data.id=CUR_COUNSEL_ID||uid("c"); data.createdBy=SESSION.name; data.createdAt=nowStr(); DB.counsel.push(data); saved=data; audit("新增輔導紀錄",data.date);}
   if(EDIT_CTX) EDIT_CTX.saved=true;
-  persist(); renderCounsel(); closeModal(); toast("輔導紀錄已儲存");
+  persist(); syncPush("counsel",saved); renderCounsel(); closeModal(); toast("輔導紀錄已儲存");
 }
 function deleteCounsel(id){
-  confirmModal("確定刪除此晤談 / 輔導紀錄？",()=>{ const c=DB.counsel.find(x=>x.id===id); DB.counsel=DB.counsel.filter(x=>x.id!==id); attDelByOwner("counsel:"+id); persist(); audit("刪除輔導紀錄",c.date); renderCounsel(); toast("已刪除"); });
+  confirmModal("確定刪除此晤談 / 輔導紀錄？",()=>{ const c=DB.counsel.find(x=>x.id===id); DB.counsel=DB.counsel.filter(x=>x.id!==id); attDelByOwner("counsel:"+id); persist(); syncRemove("counsel",id); audit("刪除輔導紀錄",c.date); renderCounsel(); toast("已刪除"); });
 }
 
 /* =========================================================
@@ -1650,15 +1756,16 @@ function saveStudent(id){
   const name=val("s_name"); if(!name){toast("請輸入學生姓名",true);return;}
   const data={name,studentNo:val("s_no"),grade:val("s_grade"),classOf:val("s_class"),gender:val("s_gender"),
     tutor:val("s_tutor"),guardian:val("s_guardian"),contact:val("s_contact"),note:val("s_note")};
-  if(id){ Object.assign(DB.students.find(x=>x.id===id),data,{updatedBy:SESSION.name,updatedAt:nowStr()}); audit("編輯學生",name); }
-  else { data.id=uid("s"); data.createdBy=SESSION.name; data.createdAt=nowStr(); DB.students.push(data); audit("新增學生",name); }
-  persist(); initSelects(); renderStudents(); closeModal(); toast("學生資料已儲存");
+  let saved;
+  if(id){ saved=DB.students.find(x=>x.id===id); Object.assign(saved,data,{updatedBy:SESSION.name,updatedAt:nowStr()}); audit("編輯學生",name); }
+  else { data.id=uid("s"); data.createdBy=SESSION.name; data.createdAt=nowStr(); DB.students.push(data); saved=data; audit("新增學生",name); }
+  persist(); syncPush("students",saved); initSelects(); renderStudents(); closeModal(); toast("學生資料已儲存");
 }
 function deleteStudent(id){
   const s=DB.students.find(x=>x.id===id);
   const cnt=DB.stuEvents.filter(e=>e.studentId===id).length;
   confirmModal(`確定刪除學生「${esc(s.name)}」？`+(cnt?`<div class="hint warn">注意：此學生仍有 ${cnt} 筆事件紀錄，刪除學生不會刪除事件，但事件將顯示為未指定。</div>`:""),
-    ()=>{ DB.students=DB.students.filter(x=>x.id!==id); persist(); audit("刪除學生",s.name); initSelects(); renderStudents(); toast("已刪除"); });
+    ()=>{ DB.students=DB.students.filter(x=>x.id!==id); persist(); syncRemove("students",id); audit("刪除學生",s.name); initSelects(); renderStudents(); toast("已刪除"); });
 }
 
 /* =========================================================
@@ -1778,21 +1885,22 @@ function saveStuEvent(id){
     type:val("se_type"),level:val("se_level"),status:val("se_status"),handlerTeacherId:val("se_handler"),
     followDate:val("se_follow"),fact,handle:val("se_handle"),linkedEventId:val("se_link"),
     note:val("se_note"),secret:document.getElementById("se_secret").checked};
+  let saved;
   if(id){ const e=DB.stuEvents.find(x=>x.id===id);
     e.history=e.history||[]; e.history.push({by:SESSION.name,at:nowStr(),note:"編輯事件"});
-    Object.assign(e,data); audit("編輯學生事件",data.no+"｜"+studentName(studentId));
+    Object.assign(e,data); saved=e; audit("編輯學生事件",data.no+"｜"+studentName(studentId));
   } else {
     data.id=CUR_STUEVENT_ID||uid("se"); data.recorderUser=SESSION.name; data.recorder=SESSION.name; data.createdAt=nowStr();
     data.history=[{by:SESSION.name,at:nowStr(),note:"建立事件"}];
-    DB.stuEvents.push(data); audit("新增學生事件",data.no+"｜"+studentName(studentId));
+    DB.stuEvents.push(data); saved=data; audit("新增學生事件",data.no+"｜"+studentName(studentId));
   }
   if(EDIT_CTX) EDIT_CTX.saved=true;
-  persist(); renderStuEvents(); closeModal(); toast("學生事件已儲存");
+  persist(); syncPush("stuEvents",saved); renderStuEvents(); closeModal(); toast("學生事件已儲存");
 }
 function deleteStuEvent(id){
   const e=DB.stuEvents.find(x=>x.id===id);
   confirmModal(`確定刪除學生事件「${esc(e.no)}」？此操作將留下稽核紀錄。`,
-    ()=>{ DB.stuEvents=DB.stuEvents.filter(x=>x.id!==id); attDelByOwner("stuevent:"+id); persist(); audit("刪除學生事件",e.no); renderStuEvents(); toast("已刪除"); });
+    ()=>{ DB.stuEvents=DB.stuEvents.filter(x=>x.id!==id); attDelByOwner("stuevent:"+id); persist(); syncRemove("stuEvents",id); audit("刪除學生事件",e.no); renderStuEvents(); toast("已刪除"); });
 }
 function viewStuEvent(id){
   const e=DB.stuEvents.find(x=>x.id===id);
@@ -1933,7 +2041,7 @@ function saveChecklist(){
   const id=val("ckEvent"); if(!id){toast("請先選擇事件",true);return;}
   const data={}; document.querySelectorAll(".ckitem").forEach(c=>data[c.dataset.k]=c.checked);
   data._updatedBy=SESSION.name; data._updatedAt=nowStr();
-  DB.checklist[id]=data; persist(); audit("更新程序檢核",DB.events.find(e=>e.id===id)?.no||id); toast("檢核結果已儲存");
+  DB.checklist[id]=data; persist(); syncPush("checklist",id,data); audit("更新程序檢核",DB.events.find(e=>e.id===id)?.no||id); toast("檢核結果已儲存");
 }
 
 /* =========================================================
@@ -2038,6 +2146,8 @@ function renderSettings(){
   document.getElementById("roleTable").innerHTML=h;
   const gi=document.getElementById("gasUrlInput"); if(gi) gi.value=gasUrl();
   const gs=document.getElementById("gasStatus"); if(gs) gs.textContent=gasUrl()?"目前為雲端模式（附件存於 Google Drive）。":"目前為本機儲存模式（附件存於此瀏覽器）。";
+  const stog=document.getElementById("syncToggle"); if(stog) stog.checked=syncOn();
+  const sst=document.getElementById("syncStatus"); if(sst) sst.textContent=syncOn()?(TOKEN?"線上同步已啟用，目前為登入狀態。":"線上同步已啟用（尚未登入雲端）。"):"目前為本機模式（資料僅存此瀏覽器）。";
   renderAccounts();
 }
 
@@ -2090,19 +2200,20 @@ async function saveAccount(username){
   if(!u||!name){ toast("請填寫帳號與姓名",true); return; }
   // 全系統僅允許 1 位系統管理員
   if(role==="admin" && adminTakenBy(username)){ toast("系統僅允許一位系統管理員，無法再指派",true); return; }
-  let list=loadAccounts();
+  let list=loadAccounts(); let savedAcc;
   if(username){
     const acc=list.find(a=>a.username===username);
     acc.name=name; acc.role=role;
     if(pass){ if(pass.length<4){ toast("密碼至少 4 碼",true); return; } acc.passHash=await hashPw(pass); }
-    audit("編輯帳號",username);
+    savedAcc=acc; audit("編輯帳號",username);
   } else {
     if(list.some(a=>a.username.toLowerCase()===u.toLowerCase())){ toast("帳號已存在",true); return; }
     if(!pass||pass.length<4){ toast("請設定至少 4 碼密碼",true); return; }
-    list.push({username:u,name,role,passHash:await hashPw(pass),createdAt:nowStr()});
+    savedAcc={username:u,name,role,passHash:await hashPw(pass),createdAt:nowStr()};
+    list.push(savedAcc);
     audit("新增帳號",u+"（"+ROLES[role].name+"）");
   }
-  saveAccounts(list); renderAccounts(); closeModal(); toast("帳號已儲存");
+  saveAccounts(list); syncPush("account",savedAcc.username,savedAcc); renderAccounts(); closeModal(); toast("帳號已儲存");
 }
 function deleteAccount(username){
   if(username===SESSION.username){ toast("無法刪除目前登入中的帳號",true); return; }
@@ -2111,6 +2222,7 @@ function deleteAccount(username){
   if(target&&target.role==="admin"&&list.filter(a=>a.role==="admin").length<=1){ toast("至少需保留一個系統管理員帳號",true); return; }
   confirmModal(`確定刪除帳號「${esc(username)}」？`,()=>{
     saveAccounts(loadAccounts().filter(a=>a.username!==username));
+    syncRemove("account",username);
     audit("刪除帳號",username); renderAccounts(); toast("已刪除");
   });
 }
