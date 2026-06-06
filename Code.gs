@@ -111,3 +111,9 @@ function deleteFile(id) {
   }
   return { ok: false, error: "找不到該附件" };
 }
+
+/** 在編輯器手動執行一次此函式，以授權 Google 雲端硬碟存取權限。 */
+function grantPermissions() {
+  DriveApp.getRootFolder().getName();
+  SpreadsheetApp.getActiveSpreadsheet().getName();
+}
