@@ -6,156 +6,226 @@
 <title>學校教師事件紀錄與教評輔助系統</title>
 <style>
   :root{
-    --bg:#f4f6f9; --panel:#ffffff; --ink:#1f2a37; --muted:#667085;
-    --line:#e4e8ee; --brand:#2b5f9e; --brand-d:#214b7e;
-    --red:#c0392b; --red-bg:#fdecea; --amber:#b7791f; --amber-bg:#fef6e7;
-    --green:#1e7e44; --green-bg:#e8f6ee; --blue:#2b5f9e; --blue-bg:#eaf1f9;
-    --gray:#667085; --gray-bg:#eef1f5;
-    --shadow:0 1px 3px rgba(16,24,40,.08),0 1px 2px rgba(16,24,40,.06);
-    --radius:12px;
+    /* 中性色：冷調近黑 + 灰階（取代政府藍系）*/
+    --bg:#f7f8fa; --panel:#ffffff; --ink:#18181b; --ink-2:#3f3f46; --muted:#71717a;
+    --line:#e8e8ec; --line-2:#f1f1f4;
+    /* 品牌主色：靛紫（SaaS 質感，非機關藍）*/
+    --brand:#5b5bd6; --brand-d:#4a4ac4; --brand-bg:#eeeefc; --brand-ink:#4338ca;
+    /* 語意色：較柔和的現代色票 */
+    --red:#dc2626; --red-bg:#fef2f2; --amber:#d97706; --amber-bg:#fffbeb;
+    --green:#16a34a; --green-bg:#f0fdf4; --blue:#2563eb; --blue-bg:#eff6ff;
+    --gray:#71717a; --gray-bg:#f4f4f5;
+    /* 字級層級 (type scale) */
+    --fs-xs:12px; --fs-sm:13px; --fs-base:14px; --fs-md:15px; --fs-lg:17px;
+    --fs-xl:20px; --fs-2xl:24px; --fs-3xl:30px;
+    /* 間距 / 圓角 / 陰影 */
+    --space:4px;
+    --shadow-sm:0 1px 2px rgba(24,24,27,.06);
+    --shadow:0 1px 3px rgba(24,24,27,.07),0 1px 2px rgba(24,24,27,.04);
+    --shadow-md:0 4px 12px rgba(24,24,27,.08),0 2px 4px rgba(24,24,27,.04);
+    --shadow-lg:0 12px 32px rgba(24,24,27,.12);
+    --radius-sm:8px; --radius:10px; --radius-lg:14px;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{
-    font-family:"Segoe UI","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
-    background:var(--bg); color:var(--ink); font-size:14px; line-height:1.55;
+    font-family:"Inter","Segoe UI","Microsoft JhengHei","PingFang TC",system-ui,-apple-system,sans-serif;
+    background:var(--bg); color:var(--ink); font-size:var(--fs-base); line-height:1.55;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    font-feature-settings:"cv11","ss01"; letter-spacing:-0.006em;
   }
   button{font-family:inherit;cursor:pointer}
-  input,select,textarea{font-family:inherit;font-size:14px}
-  a{color:var(--brand)}
+  input,select,textarea{font-family:inherit;font-size:var(--fs-base);color:var(--ink)}
+  a{color:var(--brand);text-decoration:none}
+  /* 線性圖示（取代 emoji）：統一線重與尺寸 */
+  .icon{width:18px;height:18px;flex:0 0 auto;stroke:currentColor;stroke-width:1.75;
+    stroke-linecap:round;stroke-linejoin:round;fill:none;display:inline-block;vertical-align:-3px}
+  .icon.sm{width:15px;height:15px}
+  .icon.lg{width:22px;height:22px}
 
   /* ---------- Login ---------- */
   #loginScreen{
-    position:fixed;inset:0;background:linear-gradient(135deg,#214b7e,#2b5f9e);
+    position:fixed;inset:0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%,#eeeefc 0%,transparent 55%),
+      radial-gradient(900px 500px at 110% 110%,#e0e7ff 0%,transparent 50%),
+      #f7f8fa;
     display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px;
   }
   .login-card{
-    background:#fff;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.25);
-    width:100%;max-width:420px;padding:34px 30px;
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-lg);width:100%;max-width:420px;padding:34px 30px;
   }
-  .login-card h1{font-size:20px;margin:0 0 4px}
-  .login-card p.sub{color:var(--muted);margin:0 0 22px;font-size:13px}
-  .login-card label{display:block;font-weight:600;margin:14px 0 6px;font-size:13px}
+  .login-brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .login-brand .mark{width:38px;height:38px;border-radius:10px;background:var(--brand);
+    color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-md)}
+  .login-card h1{font-size:var(--fs-xl);margin:0 0 4px;letter-spacing:-0.02em}
+  .login-card p.sub{color:var(--muted);margin:0 0 22px;font-size:var(--fs-sm)}
+  .login-card label{display:block;font-weight:600;margin:14px 0 6px;font-size:var(--fs-sm);color:var(--ink-2)}
   .login-card select,.login-card input{
-    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);
+    background:#fff;transition:border-color .15s,box-shadow .15s;
+  }
+  .login-card select:focus,.login-card input:focus{
+    outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg);
   }
   .login-card button{
-    width:100%;margin-top:22px;padding:12px;border:0;border-radius:9px;
-    background:var(--brand);color:#fff;font-size:15px;font-weight:600;
+    width:100%;margin-top:22px;padding:12px;border:0;border-radius:var(--radius-sm);
+    background:var(--brand);color:#fff;font-size:var(--fs-md);font-weight:600;
+    transition:background .15s,transform .05s;
   }
   .login-card button:hover{background:var(--brand-d)}
-  .login-note{margin-top:16px;font-size:12px;color:var(--muted);text-align:center;line-height:1.7}
+  .login-card button:active{transform:translateY(1px)}
+  .login-note{margin-top:18px;font-size:var(--fs-xs);color:var(--muted);text-align:center;line-height:1.7}
 
   /* ---------- Layout ---------- */
   #app{display:none;min-height:100vh}
   .topbar{
-    position:sticky;top:0;z-index:50;background:var(--brand);color:#fff;
-    display:flex;align-items:center;gap:12px;padding:10px 16px;box-shadow:var(--shadow);
+    position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:saturate(180%) blur(8px);
+    color:var(--ink);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:12px;padding:9px 16px;
   }
-  .topbar .logo{font-weight:700;font-size:16px;white-space:nowrap}
+  .topbar .mark{width:30px;height:30px;border-radius:8px;background:var(--brand);color:#fff;
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:var(--shadow-sm)}
+  .topbar .logo{font-weight:700;font-size:var(--fs-md);white-space:nowrap;letter-spacing:-0.01em}
+  .topbar .logo span{color:var(--muted);font-weight:500;font-size:var(--fs-sm)}
   .topbar .spacer{flex:1}
-  .topbar .who{font-size:13px;opacity:.95;text-align:right;line-height:1.3}
-  .topbar .who b{display:block}
+  .topbar .who{font-size:var(--fs-sm);text-align:right;line-height:1.3;color:var(--muted)}
+  .topbar .who b{display:block;color:var(--ink);font-weight:600}
   .topbar button.logout{
-    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
-    color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;
+    display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);
+    color:var(--ink-2);border-radius:var(--radius-sm);padding:7px 12px;font-size:var(--fs-sm);font-weight:500;
   }
-  .topbar button.logout:hover{background:rgba(255,255,255,.28)}
-  .menu-toggle{display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 10px;font-size:16px}
+  .topbar button.logout:hover{background:var(--gray-bg);border-color:#d4d4d8}
+  .menu-toggle{display:none;background:#fff;border:1px solid var(--line);color:var(--ink);
+    border-radius:var(--radius-sm);padding:6px 9px;line-height:0}
 
   .shell{display:flex;align-items:flex-start}
   .sidebar{
-    width:212px;flex:0 0 212px;background:var(--panel);border-right:1px solid var(--line);
-    min-height:calc(100vh - 52px);padding:12px 8px;position:sticky;top:52px;
+    width:220px;flex:0 0 220px;background:var(--panel);border-right:1px solid var(--line);
+    min-height:calc(100vh - 50px);padding:14px 12px;position:sticky;top:50px;
   }
   .nav-item{
-    display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:9px;
-    color:var(--ink);font-size:14px;cursor:pointer;margin-bottom:2px;user-select:none;
+    display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--radius-sm);
+    color:var(--ink-2);font-size:var(--fs-base);font-weight:500;cursor:pointer;margin-bottom:2px;user-select:none;
+    transition:background .12s,color .12s;
   }
-  .nav-item .ic{width:20px;text-align:center}
-  .nav-item:hover{background:var(--gray-bg)}
-  .nav-item.active{background:var(--blue-bg);color:var(--brand);font-weight:600}
+  .nav-item .icon{color:var(--muted);transition:color .12s}
+  .nav-item:hover{background:var(--gray-bg);color:var(--ink)}
+  .nav-item:hover .icon{color:var(--ink-2)}
+  .nav-item.active{background:var(--brand-bg);color:var(--brand-ink);font-weight:600}
+  .nav-item.active .icon{color:var(--brand)}
   .nav-item.disabled{opacity:.4;cursor:not-allowed}
-  .nav-sep{font-size:11px;color:var(--muted);padding:12px 12px 4px;letter-spacing:.05em}
+  .nav-sep{font-size:var(--fs-xs);font-weight:600;color:var(--muted);text-transform:uppercase;
+    padding:14px 11px 5px;letter-spacing:.06em}
 
-  .main{flex:1;padding:20px 22px;min-width:0}
+  .main{flex:1;padding:22px 24px;min-width:0}
   .page{display:none}
   .page.active{display:block;animation:fade .2s ease}
   @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 
-  .page-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
-  .page-head h2{font-size:19px;margin:0}
-  .page-head .desc{color:var(--muted);font-size:13px;width:100%;margin-top:-6px}
+  .page-head{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+  .page-head h2{font-size:var(--fs-2xl);margin:0;letter-spacing:-0.02em;font-weight:700}
+  .page-head .desc{color:var(--muted);font-size:var(--fs-sm);width:100%;margin-top:2px;line-height:1.5}
   .page-head .spacer{flex:1}
 
   /* ---------- Cards / grid ---------- */
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)}
   .card-pad{padding:18px}
   .grid{display:grid;gap:14px}
   .stat-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
-  .stat{padding:16px 18px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
-  .stat .label{color:var(--muted);font-size:13px;margin-bottom:6px}
-  .stat .num{font-size:30px;font-weight:700;line-height:1}
-  .stat .foot{font-size:12px;color:var(--muted);margin-top:6px}
-  .stat.red{border-left:4px solid var(--red)} .stat.red .num{color:var(--red)}
-  .stat.amber{border-left:4px solid var(--amber)} .stat.amber .num{color:var(--amber)}
-  .stat.green{border-left:4px solid var(--green)} .stat.green .num{color:var(--green)}
-  .stat.blue{border-left:4px solid var(--blue)} .stat.blue .num{color:var(--blue)}
+  .stat{padding:16px 18px;border-radius:var(--radius-lg);background:var(--panel);border:1px solid var(--line);
+    box-shadow:var(--shadow-sm);position:relative;transition:box-shadow .15s,transform .15s,border-color .15s}
+  .stat .stat-top{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .stat .stat-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    background:var(--gray-bg);color:var(--muted)}
+  .stat .label{color:var(--muted);font-size:var(--fs-sm);font-weight:500}
+  .stat .num{font-size:var(--fs-3xl);font-weight:700;line-height:1;letter-spacing:-0.02em}
+  .stat .foot{font-size:var(--fs-xs);color:var(--muted);margin-top:7px}
+  .stat.red .stat-ic{background:var(--red-bg);color:var(--red)} .stat.red .num{color:var(--red)}
+  .stat.amber .stat-ic{background:var(--amber-bg);color:var(--amber)} .stat.amber .num{color:var(--amber)}
+  .stat.green .stat-ic{background:var(--green-bg);color:var(--green)} .stat.green .num{color:var(--green)}
+  .stat.blue .stat-ic{background:var(--brand-bg);color:var(--brand)} .stat.blue .num{color:var(--brand-ink)}
+  .stat.clickable{cursor:pointer}
+  .stat.clickable:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);border-color:#d4d4d8}
 
   /* ---------- Buttons ---------- */
-  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--ink);
-    padding:8px 14px;border-radius:9px;font-size:13.5px;font-weight:500}
-  .btn:hover{background:var(--gray-bg)}
-  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
-  .btn.primary:hover{background:var(--brand-d)}
-  .btn.danger{background:#fff;border-color:var(--red);color:var(--red)}
-  .btn.danger:hover{background:var(--red-bg)}
-  .btn.sm{padding:5px 10px;font-size:12.5px;border-radius:7px}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--ink-2);
+    padding:8px 14px;border-radius:var(--radius-sm);font-size:var(--fs-sm);font-weight:500;min-height:38px;
+    transition:background .12s,border-color .12s,box-shadow .12s,transform .04s;white-space:nowrap}
+  .btn .icon{color:var(--muted)}
+  .btn:hover{background:var(--gray-bg);border-color:#d4d4d8}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:var(--shadow-sm)}
+  .btn.primary .icon{color:#fff}
+  .btn.primary:hover{background:var(--brand-d);border-color:var(--brand-d)}
+  .btn.danger{background:#fff;border-color:var(--line);color:var(--red)}
+  .btn.danger .icon{color:var(--red)}
+  .btn.danger:hover{background:var(--red-bg);border-color:#f6c9c9}
+  .btn.sm{padding:5px 10px;font-size:var(--fs-xs);border-radius:7px;min-height:30px}
   .btn:disabled{opacity:.45;cursor:not-allowed}
 
   /* ---------- Table ---------- */
-  .table-wrap{overflow-x:auto;border-radius:var(--radius)}
-  table{width:100%;border-collapse:collapse;background:#fff;font-size:13.5px}
-  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
-  th{background:#f8fafc;color:var(--muted);font-weight:600;font-size:12.5px;position:sticky;top:0}
+  .table-wrap{overflow-x:auto;border-radius:var(--radius-lg)}
+  table{width:100%;border-collapse:collapse;background:#fff;font-size:var(--fs-sm)}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line-2);vertical-align:top;white-space:nowrap}
+  th{background:#fafafa;color:var(--muted);font-weight:600;font-size:var(--fs-xs);position:sticky;top:0;
+    text-transform:uppercase;letter-spacing:.03em}
+  tbody tr:last-child td{border-bottom:none}
   td.wrap,th.wrap{white-space:normal;min-width:180px}
-  tbody tr:hover{background:#fafbfc}
-  .empty{padding:40px;text-align:center;color:var(--muted)}
+  tbody tr{transition:background .1s}
+  tbody tr:hover{background:var(--brand-bg)}
+  .empty{padding:44px;text-align:center;color:var(--muted)}
 
   /* ---------- Badges ---------- */
-  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:6px;font-size:var(--fs-xs);
+    font-weight:600;white-space:nowrap;line-height:1.5}
+  .badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.85}
   .b-red{background:var(--red-bg);color:var(--red)}
   .b-amber{background:var(--amber-bg);color:var(--amber)}
   .b-green{background:var(--green-bg);color:var(--green)}
-  .b-blue{background:var(--blue-bg);color:var(--blue)}
+  .b-blue{background:var(--brand-bg);color:var(--brand-ink)}
   .b-gray{background:var(--gray-bg);color:var(--gray)}
-  .tag-secret{background:#3b0a0a;color:#ffd9d4;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
+  .b-gray::before{display:none}
+  .tag-secret{display:inline-flex;align-items:center;gap:4px;background:#1c1917;color:#fca5a5;padding:2px 9px;
+    border-radius:6px;font-size:var(--fs-xs);font-weight:600}
 
   /* ---------- Filter bar ---------- */
   .filterbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
-  .field{display:flex;flex-direction:column;gap:4px}
-  .field label{font-size:12px;color:var(--muted);font-weight:600}
-  .field input,.field select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;min-width:140px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:var(--fs-xs);color:var(--muted);font-weight:600}
+  .field input,.field select{padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);
+    background:#fff;min-width:140px;transition:border-color .15s,box-shadow .15s}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg)}
 
   /* ---------- Modal ---------- */
-  .modal-bg{position:fixed;inset:0;background:rgba(16,24,40,.45);display:none;align-items:flex-start;justify-content:center;z-index:200;padding:30px 14px;overflow:auto}
+  .modal-bg{position:fixed;inset:0;background:rgba(24,24,27,.5);backdrop-filter:blur(2px);display:none;
+    align-items:flex-start;justify-content:center;z-index:200;padding:30px 14px;overflow:auto}
   .modal-bg.open{display:flex}
-  .modal{background:#fff;border-radius:14px;width:100%;max-width:760px;box-shadow:0 22px 60px rgba(0,0,0,.3);animation:fade .2s}
+  .modal{background:#fff;border-radius:var(--radius-lg);width:100%;max-width:760px;box-shadow:var(--shadow-lg);
+    animation:pop .18s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
   .modal-head{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
-  .modal-head h3{margin:0;font-size:17px}
+  .modal-head h3{margin:0;font-size:var(--fs-lg);font-weight:700;letter-spacing:-0.01em}
   .modal-head .spacer{flex:1}
-  .modal-head .x{background:none;border:0;font-size:22px;color:var(--muted);line-height:1}
-  .modal-body{padding:20px;max-height:70vh;overflow:auto}
+  .modal-head .x{background:none;border:0;font-size:24px;color:var(--muted);line-height:1;border-radius:6px;
+    width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+  .modal-head .x:hover{background:var(--gray-bg);color:var(--ink)}
+  .modal-body{padding:20px;max-height:72vh;overflow:auto}
   .modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
   .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .form-grid .full{grid-column:1/-1}
-  .form-grid label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+  .form-grid label{display:block;font-size:var(--fs-sm);font-weight:600;margin-bottom:6px;color:var(--ink-2)}
   .form-grid label .req{color:var(--red)}
   .form-grid input,.form-grid select,.form-grid textarea{
-    width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;
+    width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;
+    transition:border-color .15s,box-shadow .15s;
   }
-  .form-grid textarea{resize:vertical;min-height:74px}
-  .hint{font-size:12px;color:var(--muted);margin-top:4px}
+  .form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus{
+    outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-bg);
+  }
+  .form-grid textarea{resize:vertical;min-height:74px;line-height:1.55}
+  .hint{font-size:var(--fs-xs);color:var(--muted);margin-top:4px;line-height:1.5}
   .hint.warn{color:var(--red)}
 
   .checkbox-row{display:flex;flex-wrap:wrap;gap:8px 16px}
@@ -163,19 +233,21 @@
   .checkbox-row input{width:auto}
 
   /* ---------- Suggestion box ---------- */
-  .suggest-box{background:var(--blue-bg);border:1px solid #cfe0f2;border-radius:10px;padding:14px 16px;margin-top:6px}
-  .suggest-box h4{margin:0 0 8px;font-size:14px;color:var(--brand)}
+  .suggest-box{background:var(--brand-bg);border:1px solid #dcdcfa;border-radius:var(--radius);padding:14px 16px;margin-top:6px}
+  .suggest-box h4{margin:0 0 8px;font-size:var(--fs-base);color:var(--brand-ink);font-weight:700}
   .suggest-box ul{margin:0;padding-left:20px}
-  .suggest-box li{margin:3px 0}
-  .disclaimer{font-size:12px;color:var(--red);margin-top:10px;font-weight:600}
+  .suggest-box li{margin:4px 0}
+  .disclaimer{font-size:var(--fs-xs);color:var(--red);margin-top:10px;font-weight:600;line-height:1.5}
 
   /* ---------- Chart ---------- */
-  .bar-chart{display:flex;flex-direction:column;gap:10px}
+  .bar-chart{display:flex;flex-direction:column;gap:11px}
   .bar-row{display:flex;align-items:center;gap:10px}
-  .bar-row .blabel{width:130px;font-size:13px;color:var(--ink);flex:0 0 130px}
+  .bar-row .blabel{width:130px;font-size:var(--fs-sm);color:var(--ink-2);flex:0 0 130px}
   .bar-track{flex:1;background:var(--gray-bg);border-radius:6px;height:22px;overflow:hidden}
-  .bar-fill{height:100%;background:var(--brand);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;color:#fff;font-size:11px;padding-right:6px;min-width:22px}
-  .bar-row .bval{width:36px;text-align:right;font-weight:600;font-size:13px}
+  .bar-fill{height:100%;background:linear-gradient(90deg,var(--brand),#7a7ae6);border-radius:6px;
+    display:flex;align-items:center;justify-content:flex-end;color:#fff;font-size:var(--fs-xs);font-weight:600;
+    padding-right:7px;min-width:22px;transition:width .4s ease}
+  .bar-row .bval{width:36px;text-align:right;font-weight:700;font-size:var(--fs-sm)}
 
   /* ---------- Timeline ---------- */
   .timeline{position:relative;padding-left:24px}
@@ -184,36 +256,47 @@
   .tl-item::before{content:"";position:absolute;left:-21px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--brand);border:2px solid #fff;box-shadow:0 0 0 2px var(--line)}
   .tl-item.red::before{background:var(--red)}
   .tl-item.amber::before{background:var(--amber)}
-  .tl-item .tl-date{font-size:12px;color:var(--muted)}
-  .tl-item .tl-card{background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px 13px;margin-top:4px}
+  .tl-item .tl-date{font-size:var(--fs-xs);color:var(--muted)}
+  .tl-item .tl-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:11px 14px;margin-top:4px}
 
   /* ---------- Checklist ---------- */
-  .checklist label{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;cursor:pointer}
-  .checklist label:hover{background:#fafbfc}
-  .checklist input{margin-top:3px;width:18px;height:18px}
+  .checklist label{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);
+    border-radius:var(--radius);margin-bottom:8px;cursor:pointer;transition:background .12s,border-color .12s}
+  .checklist label:hover{background:var(--gray-bg);border-color:#d4d4d8}
+  .checklist input{margin-top:2px;width:18px;height:18px;accent-color:var(--brand)}
   .checklist .ck-txt{flex:1}
-  .checklist .ck-txt small{display:block;color:var(--muted);font-size:12px}
-  .progress{height:10px;background:var(--gray-bg);border-radius:6px;overflow:hidden;margin:8px 0 16px}
-  .progress>div{height:100%;background:var(--green);transition:width .3s}
+  .checklist .ck-txt small{display:block;color:var(--muted);font-size:var(--fs-xs);margin-top:2px}
+  .progress{height:8px;background:var(--gray-bg);border-radius:999px;overflow:hidden;margin:8px 0 16px}
+  .progress>div{height:100%;background:linear-gradient(90deg,var(--green),#34d27a);border-radius:999px;transition:width .4s ease}
 
-  .section-title{font-size:15px;font-weight:700;margin:22px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--line);display:flex;align-items:center;gap:8px}
+  .section-title{font-size:var(--fs-md);font-weight:700;margin:24px 0 12px;padding-bottom:8px;
+    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;letter-spacing:-0.01em}
+  .section-title .icon{color:var(--brand)}
 
-  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1f2a37;color:#fff;padding:11px 20px;border-radius:10px;font-size:14px;z-index:500;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:11px 18px;border-radius:var(--radius);font-size:var(--fs-base);font-weight:500;z-index:500;
+    box-shadow:var(--shadow-lg);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;
+    display:flex;align-items:center;gap:8px}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
   .toast.err{background:var(--red)}
 
   .pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-  .alert{padding:11px 14px;border-radius:9px;font-size:13px;margin-bottom:12px}
-  .alert.warn{background:var(--amber-bg);color:var(--amber);border:1px solid #f3dca0}
-  .alert.info{background:var(--blue-bg);color:var(--brand);border:1px solid #cfe0f2}
+  .alert{padding:11px 14px;border-radius:var(--radius);font-size:var(--fs-sm);margin-bottom:12px;line-height:1.55;
+    display:flex;gap:9px;align-items:flex-start}
+  .alert .icon{flex:0 0 auto;margin-top:1px}
+  .alert.warn{background:var(--amber-bg);color:#92600c;border:1px solid #fde6b8}
+  .alert.info{background:var(--brand-bg);color:var(--brand-ink);border:1px solid #dcdcfa}
 
   @media (max-width:880px){
-    .sidebar{position:fixed;left:0;top:52px;bottom:0;z-index:60;transform:translateX(-100%);transition:transform .25s;box-shadow:6px 0 18px rgba(0,0,0,.12)}
+    .sidebar{position:fixed;left:0;top:50px;bottom:0;z-index:60;transform:translateX(-100%);transition:transform .25s;box-shadow:var(--shadow-lg)}
     .sidebar.open{transform:none}
-    .menu-toggle{display:inline-block}
+    .menu-toggle{display:inline-flex;align-items:center}
     .form-grid{grid-template-columns:1fr}
-    .topbar .who b{font-size:13px}
-    .bar-row .blabel{flex:0 0 92px;width:92px;font-size:12px}
+    .topbar .logo span{display:none}
+    .topbar .who b{font-size:var(--fs-sm)}
+    .dashRow,#dashRow{grid-template-columns:1fr!important}
+    .bar-row .blabel{flex:0 0 92px;width:92px;font-size:var(--fs-xs)}
+    .main{padding:16px 14px}
   }
 
   /* ---------- Attachments ---------- */
@@ -255,8 +338,13 @@
 <!-- ============ LOGIN ============ -->
 <div id="loginScreen">
   <div class="login-card">
-    <h1>學校教師事件紀錄與教評輔助系統</h1>
-    <p class="sub">Faculty Incident Record & Evaluation Support System</p>
+    <div class="login-brand">
+      <div class="mark"><span data-icon="shieldCheck" data-icon-cls="lg"></span></div>
+      <div>
+        <h1>教師事件紀錄與教評輔助系統</h1>
+        <p class="sub" style="margin:0">Faculty Incident & Evaluation Support</p>
+      </div>
+    </div>
     <!-- 登入面板 -->
     <div id="loginPanel">
       <label>帳號</label>
@@ -289,31 +377,32 @@
 <!-- ============ APP ============ -->
 <div id="app">
   <div class="topbar">
-    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-    <div class="logo">🏫 教師事件紀錄與教評輔助系統</div>
+    <button class="menu-toggle" onclick="toggleSidebar()"><span data-icon="menu"></span></button>
+    <div class="mark"><span data-icon="cap" data-icon-cls="sm"></span></div>
+    <div class="logo">教師事件紀錄 <span>教評輔助系統</span></div>
     <div class="spacer"></div>
     <div class="who">
       <b id="barName">—</b>
       <span id="barRole">—</span>
     </div>
-    <button class="logout" onclick="doLogout()">登出</button>
+    <button class="logout" onclick="doLogout()"><span data-icon="logout" data-icon-cls="sm"></span>登出</button>
   </div>
 
   <div class="shell">
     <nav class="sidebar" id="sidebar">
       <div class="nav-sep">主功能</div>
-      <div class="nav-item active" data-page="dashboard" onclick="nav('dashboard')"><span class="ic">📊</span>首頁儀表板</div>
-      <div class="nav-item" data-page="teachers" onclick="nav('teachers')"><span class="ic">👩‍🏫</span>教師基本資料</div>
-      <div class="nav-item" data-page="events" onclick="nav('events')"><span class="ic">📝</span>事件紀錄管理</div>
-      <div class="nav-item" data-page="triage" onclick="nav('triage')"><span class="ic">🔀</span>案件分流建議</div>
-      <div class="nav-item" data-page="counsel" onclick="nav('counsel')"><span class="ic">🤝</span>晤談與輔導改善</div>
+      <div class="nav-item active" data-page="dashboard" onclick="nav('dashboard')"><span class="ic" data-icon="dashboard"></span>首頁儀表板</div>
+      <div class="nav-item" data-page="teachers" onclick="nav('teachers')"><span class="ic" data-icon="users"></span>教師基本資料</div>
+      <div class="nav-item" data-page="events" onclick="nav('events')"><span class="ic" data-icon="file"></span>事件紀錄管理</div>
+      <div class="nav-item" data-page="triage" onclick="nav('triage')"><span class="ic" data-icon="branch"></span>案件分流建議</div>
+      <div class="nav-item" data-page="counsel" onclick="nav('counsel')"><span class="ic" data-icon="message"></span>晤談與輔導改善</div>
       <div class="nav-sep">教評與檢核</div>
-      <div class="nav-item" data-page="eval" onclick="nav('eval')"><span class="ic">📑</span>教評會資料彙整</div>
-      <div class="nav-item" data-page="checklist" onclick="nav('checklist')"><span class="ic">✅</span>程序檢核表</div>
+      <div class="nav-item" data-page="eval" onclick="nav('eval')"><span class="ic" data-icon="clipboard"></span>教評會資料彙整</div>
+      <div class="nav-item" data-page="checklist" onclick="nav('checklist')"><span class="ic" data-icon="checks"></span>程序檢核表</div>
       <div class="nav-sep">系統</div>
-      <div class="nav-item" data-page="export" onclick="nav('export')"><span class="ic">📤</span>匯出與報告</div>
-      <div class="nav-item" data-page="audit" onclick="nav('audit')"><span class="ic">🗂️</span>操作紀錄</div>
-      <div class="nav-item" data-page="settings" onclick="nav('settings')"><span class="ic">⚙️</span>系統設定</div>
+      <div class="nav-item" data-page="export" onclick="nav('export')"><span class="ic" data-icon="download"></span>匯出與報告</div>
+      <div class="nav-item" data-page="audit" onclick="nav('audit')"><span class="ic" data-icon="history"></span>操作紀錄</div>
+      <div class="nav-item" data-page="settings" onclick="nav('settings')"><span class="ic" data-icon="settings"></span>系統設定</div>
     </nav>
 
     <main class="main">
@@ -321,18 +410,18 @@
       <!-- ===== DASHBOARD ===== -->
       <section class="page active" id="page-dashboard">
         <div class="page-head">
-          <h2>首頁儀表板</h2>
-          <div class="desc">本系統旨在以「客觀事實」協助行政程序與教評資料彙整，非作為單向蒐集教師把柄之用途。</div>
+          <h2 id="dashHello">首頁儀表板</h2>
+          <div class="desc" id="dashSummary"></div>
         </div>
         <div class="grid stat-grid" id="statGrid"></div>
 
-        <div class="grid" style="grid-template-columns:1.3fr 1fr;margin-top:16px" id="dashRow">
+        <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px" id="dashRow">
           <div class="card card-pad">
-            <div class="section-title" style="margin-top:0">📈 事件類型統計</div>
+            <div class="section-title" style="margin-top:0"><span data-icon="barchart"></span>事件類型統計</div>
             <div class="bar-chart" id="typeChart"></div>
           </div>
           <div class="card card-pad">
-            <div class="section-title" style="margin-top:0">⏰ 即將到期 / 高風險提醒</div>
+            <div class="section-title" style="margin-top:0"><span data-icon="clock"></span>即將到期 / 高風險提醒</div>
             <div id="alertList"></div>
           </div>
         </div>
@@ -343,7 +432,7 @@
         <div class="page-head">
           <h2>教師基本資料管理</h2>
           <div class="spacer"></div>
-          <button class="btn primary" id="btnAddTeacher" onclick="openTeacherModal()">＋ 新增教師</button>
+          <button class="btn primary" id="btnAddTeacher" onclick="openTeacherModal()"><span data-icon="plus" data-icon-cls="sm"></span>新增教師</button>
         </div>
         <div class="filterbar">
           <div class="field"><label>關鍵字查詢</label><input id="teacherSearch" placeholder="姓名 / 科目 / 職務" oninput="renderTeachers()"></div>
@@ -358,8 +447,8 @@
         <div class="page-head">
           <h2>事件紀錄管理</h2>
           <div class="spacer"></div>
-          <button class="btn" onclick="nav('timeline')" id="btnTimeline">🕒 時間軸</button>
-          <button class="btn primary" id="btnAddEvent" onclick="openEventModal()">＋ 新增事件</button>
+          <button class="btn" onclick="nav('timeline')" id="btnTimeline"><span data-icon="clock2" data-icon-cls="sm"></span>時間軸</button>
+          <button class="btn primary" id="btnAddEvent" onclick="openEventModal()"><span data-icon="plus" data-icon-cls="sm"></span>新增事件</button>
         </div>
         <div class="alert info">每筆事件應以<b>具體、可查證的客觀事實</b>描述（人、事、時、地、物），避免僅記錄主觀評論或情緒性用語。</div>
         <div class="filterbar">
@@ -413,7 +502,7 @@
         <div class="page-head">
           <h2>行政晤談與輔導改善紀錄</h2>
           <div class="spacer"></div>
-          <button class="btn primary" id="btnAddCounsel" onclick="openCounselModal()">＋ 新增晤談 / 輔導紀錄</button>
+          <button class="btn primary" id="btnAddCounsel" onclick="openCounselModal()"><span data-icon="plus" data-icon-cls="sm"></span>新增晤談 / 輔導紀錄</button>
         </div>
         <div class="filterbar">
           <div class="field"><label>對應教師</label><select id="cfTeacher" onchange="renderCounsel()"></select></div>
@@ -428,7 +517,7 @@
           <h2>教評會資料彙整</h2>
           <div class="spacer"></div>
           <select id="evalTeacher" class="btn" style="padding:8px 12px" onchange="renderEval()"></select>
-          <button class="btn" onclick="printEvalPackage()">🖨️ 列印資料包</button>
+          <button class="btn" onclick="printEvalPackage()"><span data-icon="print" data-icon-cls="sm"></span>列印資料包</button>
         </div>
         <div id="evalContent"></div>
       </section>
@@ -456,7 +545,7 @@
         <div class="page-head"><h2>匯出與報告</h2></div>
         <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
           <div class="card card-pad">
-            <div class="section-title" style="margin-top:0">📄 資料匯出</div>
+            <div class="section-title" style="margin-top:0"><span data-icon="download"></span>資料匯出</div>
             <p class="hint">匯出全部事件 / 教師 / 輔導紀錄資料，供備份或轉移。<br>※ 照片 / 影片附件儲存於本機瀏覽器，不含於 CSV / JSON，請另行於各案件下載保存。</p>
             <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px">
               <input type="checkbox" id="maskStudent" checked> 匯出時隱藏學生姓名（去識別化）
@@ -467,7 +556,7 @@
             </div>
           </div>
           <div class="card card-pad">
-            <div class="section-title" style="margin-top:0">🖨️ 列印報告</div>
+            <div class="section-title" style="margin-top:0"><span data-icon="print"></span>列印報告</div>
             <p class="hint">產生可列印的 HTML 報告或教評會資料包。</p>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn" onclick="printEventReport()">🖨️ 事件總表報告</button>
@@ -475,7 +564,7 @@
             </div>
           </div>
           <div class="card card-pad">
-            <div class="section-title" style="margin-top:0">📥 匯入備份</div>
+            <div class="section-title" style="margin-top:0"><span data-icon="inbox"></span>匯入備份</div>
             <p class="hint">由先前匯出的 JSON 還原資料（將覆蓋現有資料）。</p>
             <input type="file" id="importFile" accept="application/json" onchange="importJSON(event)" style="font-size:13px">
           </div>
@@ -495,14 +584,14 @@
       <section class="page" id="page-settings">
         <div class="page-head"><h2>系統設定</h2></div>
         <div class="card card-pad" style="margin-bottom:14px" id="accountCard">
-          <div class="section-title" style="margin-top:0">👤 帳號管理</div>
+          <div class="section-title" style="margin-top:0"><span data-icon="user"></span>帳號管理</div>
           <p class="hint">管理可登入本系統的帳號與密碼（僅系統管理員可見）。密碼以 SHA-256 雜湊後存於本機。</p>
-          <div style="text-align:right;margin-bottom:10px"><button class="btn primary" onclick="openAccountModal()">＋ 新增帳號</button></div>
+          <div style="text-align:right;margin-bottom:10px"><button class="btn primary" onclick="openAccountModal()"><span data-icon="plus" data-icon-cls="sm"></span>新增帳號</button></div>
           <div class="table-wrap"><table id="accountTable"></table></div>
           <div class="alert warn" style="margin-top:10px">⚠ 此為前端簡易密碼鎖：可擋一般人隨手開啟，但無法防止懂技術者透過原始碼繞過，亦無法保護其他裝置上的資料。敏感資料建議日後升級為後端驗證。</div>
         </div>
         <div class="card card-pad" style="margin-bottom:14px">
-          <div class="section-title" style="margin-top:0">☁️ Google Drive 雲端附件（選用）</div>
+          <div class="section-title" style="margin-top:0"><span data-icon="cloud"></span>Google Drive 雲端附件（選用）</div>
           <p class="hint">設定後，照片 / 影片改存到你的 Google Drive，並可<b>跨裝置調閱</b>；未設定則存在本機瀏覽器。部署方式請見專案資料夾內的 <code>Code.gs</code> 檔開頭說明。</p>
           <label style="font-size:13px;font-weight:600;display:block;margin-top:6px">GAS 網頁應用程式 URL（/exec 結尾）</label>
           <input id="gasUrlInput" placeholder="https://script.google.com/macros/s/..../exec" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;margin:6px 0 10px">
@@ -516,11 +605,11 @@
           <div class="alert warn" style="margin-top:12px">⚠ 使用個人 Gmail 的 Drive：上傳檔案會設為「知道連結者可檢視」。本系統含學生影像等敏感個資，請務必<b>妥善保管網址、限定人員存取</b>；正式上線強烈建議改用學校 Google Workspace 帳號並設定資料夾權限。</div>
         </div>
         <div class="card card-pad" style="margin-bottom:14px">
-          <div class="section-title" style="margin-top:0">🔐 角色權限對照</div>
+          <div class="section-title" style="margin-top:0"><span data-icon="lock"></span>角色權限對照</div>
           <div class="table-wrap"><table id="roleTable"></table></div>
         </div>
         <div class="card card-pad">
-          <div class="section-title" style="margin-top:0">🧪 範例資料 / 重置</div>
+          <div class="section-title" style="margin-top:0"><span data-icon="beaker"></span>範例資料 / 重置</div>
           <p class="hint">系統首次使用會自動載入少量示範資料以利操作。可重新載入或清空。</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn" onclick="loadDemo(true)">重新載入示範資料</button>
@@ -613,6 +702,46 @@ const CHECKLIST_ITEMS = [
   {k:"privacy",t:"是否注意保密與個資保護"},
   {k:"procedure",t:"是否確認適用之法定程序", d:"如校事會議、考核、教評會等"}
 ];
+
+/* =========================================================
+   線性圖示系統（內嵌 SVG，取代 emoji；離線可用、線重一致）
+========================================================= */
+const ICONS={
+  dashboard:'<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  file:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+  branch:'<line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  message:'<path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>',
+  clipboard:'<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/>',
+  checks:'<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+  history:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>',
+  settings:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  cap:'<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+  menu:'<line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/>',
+  shieldCheck:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  shieldAlert:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  inbox:'<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  trending:'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  activity:'<path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>',
+  barchart:'<line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/>',
+  clock2:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  print:'<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/>',
+  cloud:'<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  lock:'<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  beaker:'<path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/>',
+  user:'<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>'
+};
+function iconSvg(name,cls){ const p=ICONS[name]||""; return `<svg class="icon ${cls||''}" viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`; }
+function hydrateIcons(root){
+  (root||document).querySelectorAll("[data-icon]").forEach(el=>{
+    const n=el.getAttribute("data-icon"); if(ICONS[n]) el.innerHTML=iconSvg(n,el.getAttribute("data-icon-cls")||"");
+    el.removeAttribute("data-icon");
+  });
+}
 
 /* =========================================================
    資料存取
@@ -931,6 +1060,7 @@ function startApp(){
   document.getElementById("app").style.display="block";
   document.getElementById("barName").textContent=SESSION.name;
   document.getElementById("barRole").textContent=ROLES[SESSION.role].name;
+  hydrateIcons();
   applyRoleUI();
   initSelects();
   nav("dashboard");
@@ -1004,15 +1134,31 @@ function renderDashboard(){
   const dueSoon=ev.filter(e=>{const d=daysUntil(e.followDate);return e.followDate&&e.status!=="已結案"&&d!==null&&d<=7&&d>=0;}).length;
   const highRisk=ev.filter(e=>["重大","緊急"].includes(e.severity)&&e.status!=="已結案").length;
 
+  // 問候列：依時間 + 一句話摘要（任務導向）
+  const hr=new Date().getHours();
+  const greet=hr<12?"早安":(hr<18?"午安":"晚安");
+  const hello=document.getElementById("dashHello");
+  if(hello) hello.textContent=`${greet}，${SESSION.name} 👋`;
+  const summary=document.getElementById("dashSummary");
+  if(summary){
+    const todo=pending+dueSoon;
+    summary.textContent = todo
+      ? `你今天有 ${todo} 件待處理${highRisk?`，其中 ${highRisk} 件為高風險案件`:""}。`
+      : "目前沒有待處理或高風險案件，一切就緒 ✔";
+  }
+
   const stats=[
-    {label:"本月新增事件",num:thisMonth,cls:"blue",foot:ym},
-    {label:"待處理事件",num:pending,cls:"amber",foot:"草稿 / 待審核"},
-    {label:"輔導追蹤中案件",num:tracking,cls:"blue",foot:"狀態為追蹤中"},
-    {label:"即將到期追蹤",num:dueSoon,cls:"amber",foot:"7 日內到期"},
-    {label:"高風險案件",num:highRisk,cls:"red",foot:"重大 / 緊急且未結案"}
+    {label:"本月新增事件",num:thisMonth,cls:"blue",icon:"trending",foot:ym},
+    {label:"待處理事件",num:pending,cls:"amber",icon:"inbox",foot:"草稿 / 待審核"},
+    {label:"輔導追蹤中案件",num:tracking,cls:"blue",icon:"activity",foot:"狀態為追蹤中"},
+    {label:"即將到期追蹤",num:dueSoon,cls:"amber",icon:"clock",foot:"7 日內到期"},
+    {label:"高風險案件",num:highRisk,cls:"red",icon:"shieldAlert",foot:"重大 / 緊急且未結案"}
   ];
   document.getElementById("statGrid").innerHTML=stats.map(s=>`
-    <div class="stat ${s.cls}"><div class="label">${s.label}</div><div class="num">${s.num}</div><div class="foot">${s.foot}</div></div>`).join("");
+    <div class="stat ${s.cls}">
+      <div class="stat-top"><div class="stat-ic">${iconSvg(s.icon,"sm")}</div><div class="label">${s.label}</div></div>
+      <div class="num">${s.num}</div><div class="foot">${s.foot}</div>
+    </div>`).join("");
 
   // 類型統計圖
   const counts=EVENT_TYPES.map(t=>({t,n:ev.filter(e=>e.type===t).length}));
@@ -1025,16 +1171,17 @@ function renderDashboard(){
   // 提醒清單
   const alerts=[];
   ev.filter(e=>["重大","緊急"].includes(e.severity)&&e.status!=="已結案").forEach(e=>
-    alerts.push({cls:"b-red",icon:"🔴",txt:`${esc(teacherName(e.teacherId))}｜${esc(e.type)}（${e.severity}）`,sub:e.no}));
+    alerts.push({dot:"var(--red)",txt:`${esc(teacherName(e.teacherId))}｜${esc(e.type)}（${e.severity}）`,sub:e.no}));
   ev.filter(e=>{const d=daysUntil(e.followDate);return e.followDate&&e.status!=="已結案"&&d!==null&&d<=7;}).forEach(e=>{
     const d=daysUntil(e.followDate);
-    alerts.push({cls:d<0?"b-red":"b-amber",icon:d<0?"⚠":"🟡",txt:`${esc(teacherName(e.teacherId))} 追蹤${d<0?"已逾期 "+(-d):"剩 "+d} 天`,sub:"到期日 "+e.followDate});
+    alerts.push({dot:d<0?"var(--red)":"var(--amber)",txt:`${esc(teacherName(e.teacherId))} 追蹤${d<0?"已逾期 "+(-d):"剩 "+d} 天`,sub:"到期日 "+e.followDate});
   });
   const box=document.getElementById("alertList");
   box.innerHTML = alerts.length? alerts.slice(0,12).map(a=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line)">
-      <span>${a.icon}</span><div style="flex:1"><div style="font-size:13.5px">${a.txt}</div><div class="hint">${esc(a.sub)}</div></div>
-    </div>`).join("") : '<div class="empty">目前無高風險或即將到期案件 ✔</div>';
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line-2)">
+      <span style="width:8px;height:8px;border-radius:50%;background:${a.dot};flex:0 0 auto"></span>
+      <div style="flex:1"><div style="font-size:var(--fs-sm)">${a.txt}</div><div class="hint">${esc(a.sub)}</div></div>
+    </div>`).join("") : `<div class="empty">${iconSvg("shieldCheck","lg")}<div style="margin-top:8px">目前無高風險或即將到期案件</div></div>`;
 }
 
 /* =========================================================
@@ -1673,6 +1820,7 @@ function setModal(title,bodyHTML,buttons){
   document.getElementById("modalBody").innerHTML=bodyHTML;
   const foot=document.getElementById("modalFoot"); foot.innerHTML="";
   (buttons||[]).forEach(b=>{ const btn=document.createElement("button"); btn.className=b.cls; btn.textContent=b.txt; btn.onclick=b.fn; foot.appendChild(btn); });
+  hydrateIcons(document.getElementById("modalBody"));
   document.getElementById("modalBg").classList.add("open");
 }
 function closeModal(){
@@ -1714,6 +1862,7 @@ function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toIS
    啟動
 ========================================================= */
 (function init(){
+  hydrateIcons();
   reloadDB();
   if(!load(LS.seeded,false)){ loadDemo(false); reloadDB(); }
   const s=load(LS.session,null);
