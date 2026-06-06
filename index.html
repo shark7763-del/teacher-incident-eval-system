@@ -257,18 +257,28 @@
   <div class="login-card">
     <h1>學校教師事件紀錄與教評輔助系統</h1>
     <p class="sub">Faculty Incident Record & Evaluation Support System</p>
-    <label>登入身分（模擬登入）</label>
-    <select id="loginRole">
-      <option value="principal">校長</option>
-      <option value="hr">人事主任</option>
-      <option value="director">教務 / 學務主任</option>
-      <option value="staff">導師 / 行政人員</option>
-      <option value="committee">教評委員</option>
-      <option value="admin">系統管理員</option>
-    </select>
-    <label>姓名</label>
-    <input id="loginName" type="text" placeholder="請輸入您的姓名" />
-    <button onclick="doLogin()">登入系統</button>
+    <!-- 登入面板 -->
+    <div id="loginPanel">
+      <label>帳號</label>
+      <input id="loginUser" type="text" placeholder="請輸入帳號" autocomplete="username" />
+      <label>密碼</label>
+      <input id="loginPass" type="password" placeholder="請輸入密碼" autocomplete="current-password" />
+      <button onclick="doLogin()">登入系統</button>
+    </div>
+
+    <!-- 首次設定面板 -->
+    <div id="setupPanel" style="display:none">
+      <div class="alert info" style="margin:0 0 14px">首次使用本裝置，請先建立系統管理員帳號。</div>
+      <label>顯示姓名</label>
+      <input id="setupName" type="text" placeholder="例：王小明" />
+      <label>管理員帳號</label>
+      <input id="setupUser" type="text" placeholder="例：admin" autocomplete="username" />
+      <label>設定密碼</label>
+      <input id="setupPass" type="password" placeholder="至少 4 碼" autocomplete="new-password" />
+      <label>再次輸入密碼</label>
+      <input id="setupPass2" type="password" autocomplete="new-password" />
+      <button onclick="doSetup()">建立並開始使用</button>
+    </div>
     <div class="login-note">
       ⚠ 本系統處理教師個資與敏感案件，登入即表示您已知悉<br>
       <b>程序正義、保密原則與個資保護</b>之規範，不得將資料外流。
@@ -484,6 +494,13 @@
       <!-- ===== SETTINGS ===== -->
       <section class="page" id="page-settings">
         <div class="page-head"><h2>系統設定</h2></div>
+        <div class="card card-pad" style="margin-bottom:14px" id="accountCard">
+          <div class="section-title" style="margin-top:0">👤 帳號管理</div>
+          <p class="hint">管理可登入本系統的帳號與密碼（僅系統管理員可見）。密碼以 SHA-256 雜湊後存於本機。</p>
+          <div style="text-align:right;margin-bottom:10px"><button class="btn primary" onclick="openAccountModal()">＋ 新增帳號</button></div>
+          <div class="table-wrap"><table id="accountTable"></table></div>
+          <div class="alert warn" style="margin-top:10px">⚠ 此為前端簡易密碼鎖：可擋一般人隨手開啟，但無法防止懂技術者透過原始碼繞過，亦無法保護其他裝置上的資料。敏感資料建議日後升級為後端驗證。</div>
+        </div>
         <div class="card card-pad" style="margin-bottom:14px">
           <div class="section-title" style="margin-top:0">☁️ Google Drive 雲端附件（選用）</div>
           <p class="hint">設定後，照片 / 影片改存到你的 Google Drive，並可<b>跨裝置調閱</b>；未設定則存在本機瀏覽器。部署方式請見專案資料夾內的 <code>Code.gs</code> 檔開頭說明。</p>
@@ -549,7 +566,8 @@
 ========================================================= */
 const LS = {
   teachers:"fir_teachers", events:"fir_events", counsel:"fir_counsel",
-  audit:"fir_audit", checklist:"fir_checklist", session:"fir_session", seeded:"fir_seeded"
+  audit:"fir_audit", checklist:"fir_checklist", session:"fir_session", seeded:"fir_seeded",
+  accounts:"fir_accounts"
 };
 
 const EVENT_TYPES = ["教學不力","輔導管教不當","行政違失","疑似不適任","性平或兒少保護","其他"];
@@ -861,14 +879,46 @@ async function syncFromCloud(notify){
 /* =========================================================
    登入 / 登出
 ========================================================= */
-function doLogin(){
-  const role=document.getElementById("loginRole").value;
-  const name=document.getElementById("loginName").value.trim();
-  if(!name){ toast("請輸入姓名",true); return; }
-  SESSION={role,name,loginTime:nowStr()};
+/* ---- 帳號 / 密碼（前端簡易驗證，SHA-256 雜湊）---- */
+const loadAccounts=()=>load(LS.accounts,[]);
+const saveAccounts=a=>save(LS.accounts,a);
+async function hashPw(pw){
+  const s=pw+"::fir_salt_v1";
+  try{
+    if(window.crypto&&crypto.subtle){
+      const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));
+      return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+    }
+  }catch(e){}
+  let h=0; for(let i=0;i<s.length;i++){ h=(Math.imul(h,31)+s.charCodeAt(i))>>>0; }
+  return "f"+h.toString(16);
+}
+function showAuthPanel(which){
+  document.getElementById("loginPanel").style.display = which==="login"?"":"none";
+  document.getElementById("setupPanel").style.display = which==="setup"?"":"none";
+}
+async function doLogin(){
+  const u=val("loginUser"), p=document.getElementById("loginPass").value;
+  if(!u||!p){ toast("請輸入帳號與密碼",true); return; }
+  const acc=loadAccounts().find(a=>a.username.toLowerCase()===u.toLowerCase());
+  const ph=await hashPw(p);
+  if(!acc||acc.passHash!==ph){ toast("帳號或密碼錯誤",true); return; }
+  SESSION={username:acc.username,role:acc.role,name:acc.name,loginTime:nowStr()};
   save(LS.session,SESSION);
   startApp();
-  audit("登入系統","身分："+ROLES[role].name);
+  audit("登入系統","帳號："+acc.username+"（"+ROLES[acc.role].name+"）");
+}
+async function doSetup(){
+  const name=val("setupName"), u=val("setupUser");
+  const p=document.getElementById("setupPass").value, p2=document.getElementById("setupPass2").value;
+  if(!name||!u||!p){ toast("請完整填寫",true); return; }
+  if(p.length<4){ toast("密碼至少 4 碼",true); return; }
+  if(p!==p2){ toast("兩次密碼不一致",true); return; }
+  saveAccounts([{username:u,name,role:"admin",passHash:await hashPw(p),createdAt:nowStr()}]);
+  toast("管理員帳號已建立，請登入");
+  showAuthPanel("login");
+  document.getElementById("loginUser").value=u;
+  document.getElementById("loginPass").focus();
 }
 function doLogout(){
   if(SESSION) audit("登出系統","");
@@ -1542,10 +1592,74 @@ function renderSettings(){
   document.getElementById("roleTable").innerHTML=h;
   const gi=document.getElementById("gasUrlInput"); if(gi) gi.value=gasUrl();
   const gs=document.getElementById("gasStatus"); if(gs) gs.textContent=gasUrl()?"目前為雲端模式（附件存於 Google Drive）。":"目前為本機儲存模式（附件存於此瀏覽器）。";
+  renderAccounts();
+}
+
+/* ---- 帳號管理（僅系統管理員）---- */
+function renderAccounts(){
+  const card=document.getElementById("accountCard");
+  if(!can("settings")){ if(card) card.style.display="none"; return; }
+  if(card) card.style.display="";
+  const list=loadAccounts();
+  let h=`<thead><tr><th>帳號</th><th>顯示姓名</th><th>角色</th><th>建立時間</th><th>操作</th></tr></thead><tbody>`;
+  if(!list.length) h+=`<tr><td colspan="5"><div class="empty">尚無帳號</div></td></tr>`;
+  list.forEach(a=>{
+    h+=`<tr>
+      <td><b>${esc(a.username)}</b>${a.username===SESSION.username?'<span class="badge b-blue" style="margin-left:6px">目前登入</span>':''}</td>
+      <td>${esc(a.name)}</td>
+      <td><span class="badge b-gray">${esc(ROLES[a.role]?ROLES[a.role].name:a.role)}</span></td>
+      <td class="hint">${esc(a.createdAt||'')}</td>
+      <td><button class="btn sm" onclick="openAccountModal('${esc(a.username)}')">編輯</button>
+        <button class="btn sm danger" onclick="deleteAccount('${esc(a.username)}')">刪除</button></td></tr>`;
+  });
+  h+="</tbody>";
+  document.getElementById("accountTable").innerHTML=h;
+}
+function openAccountModal(username){
+  EDIT_CTX=null;
+  const acc=username?loadAccounts().find(a=>a.username===username):null;
+  const roleOpts=Object.keys(ROLES).map(r=>`<option value="${r}" ${acc&&acc.role===r?"selected":""}>${ROLES[r].name}</option>`).join("");
+  setModal(username?"編輯帳號":"新增帳號",`
+    <div class="form-grid">
+      <div><label>帳號（登入用）${username?'':' <span class="req">*</span>'}</label>
+        <input id="ac_user" value="${esc(acc?acc.username:'')}" ${username?'readonly style="background:#f4f6f9"':''} placeholder="例：teacher01"></div>
+      <div><label>顯示姓名 <span class="req">*</span></label><input id="ac_name" value="${esc(acc?acc.name:'')}"></div>
+      <div><label>角色 <span class="req">*</span></label><select id="ac_role">${roleOpts}</select></div>
+      <div><label>密碼 ${username?'（留空＝不變更）':'<span class="req">*</span>'}</label><input id="ac_pass" type="password" placeholder="${username?'留空則沿用原密碼':'至少 4 碼'}"></div>
+    </div>`,
+    [{txt:"取消",cls:"btn",fn:closeModal},{txt:"儲存",cls:"btn primary",fn:()=>saveAccount(username)}]);
+}
+async function saveAccount(username){
+  const u=val("ac_user"), name=val("ac_name"), role=val("ac_role");
+  const pass=document.getElementById("ac_pass").value;
+  if(!u||!name){ toast("請填寫帳號與姓名",true); return; }
+  let list=loadAccounts();
+  if(username){
+    const acc=list.find(a=>a.username===username);
+    acc.name=name; acc.role=role;
+    if(pass){ if(pass.length<4){ toast("密碼至少 4 碼",true); return; } acc.passHash=await hashPw(pass); }
+    audit("編輯帳號",username);
+  } else {
+    if(list.some(a=>a.username.toLowerCase()===u.toLowerCase())){ toast("帳號已存在",true); return; }
+    if(!pass||pass.length<4){ toast("請設定至少 4 碼密碼",true); return; }
+    list.push({username:u,name,role,passHash:await hashPw(pass),createdAt:nowStr()});
+    audit("新增帳號",u+"（"+ROLES[role].name+"）");
+  }
+  saveAccounts(list); renderAccounts(); closeModal(); toast("帳號已儲存");
+}
+function deleteAccount(username){
+  if(username===SESSION.username){ toast("無法刪除目前登入中的帳號",true); return; }
+  const list=loadAccounts();
+  const target=list.find(a=>a.username===username);
+  if(target&&target.role==="admin"&&list.filter(a=>a.role==="admin").length<=1){ toast("至少需保留一個系統管理員帳號",true); return; }
+  confirmModal(`確定刪除帳號「${esc(username)}」？`,()=>{
+    saveAccounts(loadAccounts().filter(a=>a.username!==username));
+    audit("刪除帳號",username); renderAccounts(); toast("已刪除");
+  });
 }
 function wipeAll(){
   confirmModal("⚠ 此操作將<b>永久清空所有資料</b>（教師、事件、輔導、檢核、稽核），且無法復原。確定？",()=>{
-    Object.values(LS).forEach(k=>{ if(k!==LS.session) localStorage.removeItem(k); });
+    Object.values(LS).forEach(k=>{ if(k!==LS.session && k!==LS.accounts) localStorage.removeItem(k); });
     localStorage.removeItem(ATT_META); IDB.clear();
     reloadDB(); initSelects(); nav("dashboard"); toast("已清空所有資料");
   });
@@ -1603,9 +1717,16 @@ function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toIS
   reloadDB();
   if(!load(LS.seeded,false)){ loadDemo(false); reloadDB(); }
   const s=load(LS.session,null);
-  if(s){ SESSION=s; startApp(); }
-  else { document.getElementById("loginName").focus(); }
-  document.getElementById("loginName").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+  if(s){ SESSION=s; startApp(); return; }
+  // 未登入：已有帳號→登入畫面；尚無帳號→首次建立管理員
+  const hasAcc=loadAccounts().length>0;
+  showAuthPanel(hasAcc?"login":"setup");
+  const lp=document.getElementById("loginPass");
+  if(lp) lp.addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+  const sp2=document.getElementById("setupPass2");
+  if(sp2) sp2.addEventListener("keydown",e=>{ if(e.key==="Enter") doSetup(); });
+  const focusEl=document.getElementById(hasAcc?"loginUser":"setupName");
+  if(focusEl) focusEl.focus();
 })();
 </script>
 </body>
