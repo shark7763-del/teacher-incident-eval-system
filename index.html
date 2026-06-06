@@ -396,6 +396,9 @@
       <div class="nav-item" data-page="events" onclick="nav('events')"><span class="ic" data-icon="file"></span>事件紀錄管理</div>
       <div class="nav-item" data-page="triage" onclick="nav('triage')"><span class="ic" data-icon="branch"></span>案件分流建議</div>
       <div class="nav-item" data-page="counsel" onclick="nav('counsel')"><span class="ic" data-icon="message"></span>晤談與輔導改善</div>
+      <div class="nav-sep">學生事務</div>
+      <div class="nav-item" data-page="students" onclick="nav('students')"><span class="ic" data-icon="user"></span>學生基本資料</div>
+      <div class="nav-item" data-page="stuevents" onclick="nav('stuevents')"><span class="ic" data-icon="clipboard"></span>學生事件紀錄</div>
       <div class="nav-sep">教評與檢核</div>
       <div class="nav-item" data-page="eval" onclick="nav('eval')"><span class="ic" data-icon="clipboard"></span>教評會資料彙整</div>
       <div class="nav-item" data-page="checklist" onclick="nav('checklist')"><span class="ic" data-icon="checks"></span>程序檢核表</div>
@@ -509,6 +512,41 @@
           <div class="field"><label>改善結果</label><select id="cfResult" onchange="renderCounsel()"></select></div>
         </div>
         <div class="card table-wrap"><table id="counselTable"></table></div>
+      </section>
+
+      <!-- ===== STUDENTS（學生基本資料）===== -->
+      <section class="page" id="page-students">
+        <div class="page-head">
+          <h2>學生基本資料</h2>
+          <div class="spacer"></div>
+          <button class="btn primary" id="btnAddStudent" onclick="openStudentModal()"><span data-icon="plus" data-icon-cls="sm"></span>新增學生</button>
+        </div>
+        <div class="filterbar">
+          <div class="field"><label>關鍵字查詢</label><input id="stuSearch" placeholder="姓名 / 學號 / 班級" oninput="renderStudents()"></div>
+          <div class="field"><label>年級</label><select id="stuFGrade" onchange="renderStudents()"></select></div>
+        </div>
+        <div class="card table-wrap"><table id="studentTable"></table></div>
+      </section>
+
+      <!-- ===== STUDENT EVENTS（學生事件紀錄）===== -->
+      <section class="page" id="page-stuevents">
+        <div class="page-head">
+          <h2>學生事件紀錄</h2>
+          <div class="spacer"></div>
+          <button class="btn primary" id="btnAddStuEvent" onclick="openStuEventModal()"><span data-icon="plus" data-icon-cls="sm"></span>新增學生事件</button>
+        </div>
+        <div class="alert info"><span data-icon="shieldCheck" data-icon-cls="sm"></span><div>學生事件以<b>客觀事實</b>記錄並依輔導程序處理；涉及保護案件請依法定時限通報，敏感個案請勾選「機密」。</div></div>
+        <div class="grid stat-grid" id="stuStatGrid" style="margin-bottom:14px"></div>
+        <div class="filterbar">
+          <div class="field"><label>關鍵字</label><input id="seSearch" placeholder="編號 / 事實 / 學生" oninput="renderStuEvents()"></div>
+          <div class="field"><label>學生</label><select id="sefStudent" onchange="renderStuEvents()"></select></div>
+          <div class="field"><label>年級</label><select id="sefGrade" onchange="renderStuEvents()"></select></div>
+          <div class="field"><label>事件類型</label><select id="sefType" onchange="renderStuEvents()"></select></div>
+          <div class="field"><label>關注程度</label><select id="sefLevel" onchange="renderStuEvents()"></select></div>
+          <div class="field"><label>狀態</label><select id="sefStatus" onchange="renderStuEvents()"></select></div>
+          <div class="field"><label>&nbsp;</label><button class="btn" onclick="clearStuEventFilters()">清除篩選</button></div>
+        </div>
+        <div class="card table-wrap"><table id="stuEventTable"></table></div>
       </section>
 
       <!-- ===== EVAL ===== -->
@@ -656,7 +694,8 @@
 const LS = {
   teachers:"fir_teachers", events:"fir_events", counsel:"fir_counsel",
   audit:"fir_audit", checklist:"fir_checklist", session:"fir_session", seeded:"fir_seeded",
-  accounts:"fir_accounts"
+  accounts:"fir_accounts",
+  students:"fir_students", stuEvents:"fir_stuevents"
 };
 
 const EVENT_TYPES = ["教學不力","輔導管教不當","行政違失","疑似不適任","性平或兒少保護","其他"];
@@ -665,13 +704,21 @@ const STATUSES    = ["草稿","待審核","追蹤中","已結案","送教評"];
 const IMPACTS     = ["學生","班級","家長","同仁","行政"];
 const COUNSEL_RESULTS = ["有改善","部分改善","無改善","待觀察"];
 
+/* ---- 學生事件（獨立模組）---- */
+const GRADES = ["一年級","二年級","三年級","四年級","五年級","六年級","七年級","八年級","九年級","其他"];
+const STU_EVENT_TYPES = ["輔導個案紀錄","出缺勤／生活常規","偏差行為／獎懲","學習／成績關注"];
+const STU_LEVELS   = ["一般","需注意","高關注","危機"];
+const STU_STATUSES = ["處理中","追蹤中","已結案","已通報"];
+const STU_LEVEL_BADGE  = {"一般":"b-gray","需注意":"b-blue","高關注":"b-amber","危機":"b-red"};
+const STU_STATUS_BADGE = {"處理中":"b-amber","追蹤中":"b-blue","已結案":"b-green","已通報":"b-red"};
+
 const ROLES = {
-  principal:{name:"校長",      perms:["view","review","export","all_events","manage_event","manage_counsel","checklist","eval"]},
-  hr:       {name:"人事主任",  perms:["view","export","all_events","checklist","eval","manage_counsel"]},
-  director: {name:"教務 / 學務主任", perms:["view","all_events","manage_event","manage_counsel","checklist","eval","export"]},
-  staff:    {name:"導師 / 行政人員", perms:["view_own","manage_own_event"]},
+  principal:{name:"校長",      perms:["view","review","export","all_events","manage_event","manage_counsel","checklist","eval","student_all"]},
+  hr:       {name:"人事主任",  perms:["view","export","all_events","checklist","eval","manage_counsel","student_view"]},
+  director: {name:"教務 / 學務主任", perms:["view","all_events","manage_event","manage_counsel","checklist","eval","export","student_all"]},
+  staff:    {name:"導師 / 行政人員", perms:["view_own","manage_own_event","student_own"]},
   committee:{name:"教評委員",  perms:["view_sent","eval"]},
-  admin:    {name:"系統管理員",perms:["view","export","all_events","manage_event","manage_counsel","checklist","eval","settings","review"]}
+  admin:    {name:"系統管理員",perms:["view","export","all_events","manage_event","manage_counsel","checklist","eval","settings","review","student_all"]}
 };
 
 const ROLE_MATRIX = [
@@ -682,6 +729,7 @@ const ROLE_MATRIX = [
   ["晤談 / 輔導紀錄","✔","✔","✔","—","—","✔"],
   ["程序檢核","✔","✔","✔","—","—","✔"],
   ["教評資料彙整","✔","✔","✔","—","✔","✔"],
+  ["學生事件紀錄","✔","檢視","✔","僅自己","—","✔"],
   ["匯出 / 列印","✔","✔","✔","—","—","✔"],
   ["系統設定","—","—","—","—","—","✔"]
 ];
@@ -748,9 +796,9 @@ function hydrateIcons(root){
 ========================================================= */
 const load = (k,def)=>{ try{return JSON.parse(localStorage.getItem(k))??def}catch(e){return def} };
 const save = (k,v)=> localStorage.setItem(k,JSON.stringify(v));
-let DB = { teachers:[], events:[], counsel:[], audit:[], checklist:{} };
+let DB = { teachers:[], events:[], counsel:[], audit:[], checklist:{}, students:[], stuEvents:[] };
 let SESSION = null;
-let EDIT_CTX=null, CUR_EVENT_ID=null, CUR_COUNSEL_ID=null, CUR_LB_ID=null, CUR_LB_URL=null;
+let EDIT_CTX=null, CUR_EVENT_ID=null, CUR_COUNSEL_ID=null, CUR_LB_ID=null, CUR_LB_URL=null, CUR_STUEVENT_ID=null;
 
 function reloadDB(){
   DB.teachers = load(LS.teachers,[]);
@@ -758,8 +806,10 @@ function reloadDB(){
   DB.counsel  = load(LS.counsel,[]);
   DB.audit    = load(LS.audit,[]);
   DB.checklist= load(LS.checklist,{});
+  DB.students = load(LS.students,[]);
+  DB.stuEvents= load(LS.stuEvents,[]);
 }
-function persist(){ save(LS.teachers,DB.teachers);save(LS.events,DB.events);save(LS.counsel,DB.counsel);save(LS.audit,DB.audit);save(LS.checklist,DB.checklist); }
+function persist(){ save(LS.teachers,DB.teachers);save(LS.events,DB.events);save(LS.counsel,DB.counsel);save(LS.audit,DB.audit);save(LS.checklist,DB.checklist);save(LS.students,DB.students);save(LS.stuEvents,DB.stuEvents); }
 
 /* =========================================================
    工具
@@ -796,6 +846,22 @@ function visibleEvents(){
   if(p.includes("view_sent")) return DB.events.filter(e=>e.status==="送教評");
   if(p.includes("view_own"))  return DB.events.filter(e=>e.recorderUser===SESSION.name);
   return [];
+}
+
+/* ---- 學生事件權限 ---- */
+function studentName(id){ const s=DB.students.find(x=>x.id===id); return s?s.name:"（未指定）"; }
+function canStudentView(){ const p=ROLES[SESSION.role].perms; return p.includes("student_all")||p.includes("student_view")||p.includes("student_own"); }
+function canStudentManage(){ const p=ROLES[SESSION.role].perms; return p.includes("student_all")||p.includes("student_own"); }
+function visibleStudentEvents(){
+  const p = ROLES[SESSION.role].perms;
+  if(p.includes("student_all")||p.includes("student_view")) return DB.stuEvents;
+  if(p.includes("student_own")) return DB.stuEvents.filter(e=>e.recorderUser===SESSION.name);
+  return [];
+}
+function nextStuEventNo(){
+  const ymd=today().replace(/-/g,"");
+  const n=DB.stuEvents.filter(e=>e.no&&e.no.includes("SV-"+ymd)).length;
+  return "SV-"+ymd+"-"+String(n+1).padStart(3,"0");
 }
 
 /* =========================================================
@@ -1078,6 +1144,8 @@ function applyRoleUI(){
     eval: can("eval"),
     checklist: can("checklist"),
     export: can("export"),
+    students: canStudentView(),
+    stuevents: canStudentView(),
     audit: can("view")||r==="admin",
     settings: can("settings")
   };
@@ -1089,6 +1157,8 @@ function applyRoleUI(){
   document.getElementById("btnAddEvent").style.display = canManageEvents()?"":"none";
   document.getElementById("btnAddTeacher").style.display = can("manage_event")||r==="admin"?"":"none";
   document.getElementById("btnAddCounsel").style.display = can("manage_counsel")?"":"none";
+  const bAddStu=document.getElementById("btnAddStudent"); if(bAddStu) bAddStu.style.display=canStudentManage()?"":"none";
+  const bAddSe=document.getElementById("btnAddStuEvent"); if(bAddSe) bAddSe.style.display=canStudentManage()?"":"none";
 }
 
 /* =========================================================
@@ -1104,6 +1174,7 @@ function nav(page){
   document.getElementById("sidebar").classList.remove("open");
   const fn={dashboard:renderDashboard,teachers:renderTeachers,events:renderEvents,timeline:renderTimeline,
     triage:renderTriagePage,counsel:renderCounsel,eval:renderEvalPage,checklist:renderChecklistPage,
+    students:renderStudents,stuevents:renderStuEvents,
     audit:renderAudit,settings:renderSettings,export:()=>{}}[page];
   if(fn) fn();
 }
@@ -1120,6 +1191,14 @@ function initSelects(){
   document.getElementById("cfResult").innerHTML='<option value="">全部結果</option>'+COUNSEL_RESULTS.map(t=>`<option>${t}</option>`).join("");
   document.getElementById("triageTypeSim").innerHTML=EVENT_TYPES.map(t=>`<option>${t}</option>`).join("");
   document.getElementById("triageSevSim").innerHTML=SEVERITIES.map(t=>`<option>${t}</option>`).join("");
+  // 學生事件相關下拉
+  const stuOpts='<option value="">全部學生</option>'+DB.students.map(s=>`<option value="${s.id}">${esc(s.name)}${s.classOf?'（'+esc(s.classOf)+'）':''}</option>`).join("");
+  const se=document.getElementById("sefStudent"); if(se) se.innerHTML=stuOpts;
+  const gradeOpts='<option value="">全部年級</option>'+GRADES.map(g=>`<option>${g}</option>`).join("");
+  ["stuFGrade","sefGrade"].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=gradeOpts;});
+  const seType=document.getElementById("sefType"); if(seType) seType.innerHTML='<option value="">全部類型</option>'+STU_EVENT_TYPES.map(t=>`<option>${t}</option>`).join("");
+  const seLevel=document.getElementById("sefLevel"); if(seLevel) seLevel.innerHTML='<option value="">全部程度</option>'+STU_LEVELS.map(t=>`<option>${t}</option>`).join("");
+  const seStatus=document.getElementById("sefStatus"); if(seStatus) seStatus.innerHTML='<option value="">全部狀態</option>'+STU_STATUSES.map(t=>`<option>${t}</option>`).join("");
 }
 
 /* =========================================================
@@ -1522,6 +1601,220 @@ function deleteCounsel(id){
 }
 
 /* =========================================================
+   學生基本資料（獨立模組）
+========================================================= */
+function renderStudents(){
+  const kw=(val("stuSearch")||"").toLowerCase();
+  const fg=val("stuFGrade");
+  const list=DB.students.filter(s=>{
+    if(fg && s.grade!==fg) return false;
+    if(kw && ![s.name,s.studentNo,s.classOf,s.grade].join(" ").toLowerCase().includes(kw)) return false;
+    return true;
+  });
+  const canEdit=canStudentManage();
+  let h=`<thead><tr><th>姓名</th><th>學號</th><th>年級</th><th>班級</th><th>性別</th><th>導師</th><th>監護人 / 聯絡</th><th>事件數</th>${canEdit?"<th>操作</th>":""}</tr></thead><tbody>`;
+  if(!list.length) h+=`<tr><td colspan="9"><div class="empty">尚無學生資料</div></td></tr>`;
+  list.forEach(s=>{
+    const cnt=DB.stuEvents.filter(e=>e.studentId===s.id).length;
+    h+=`<tr>
+      <td><b>${esc(s.name)}</b></td>
+      <td>${esc(s.studentNo||"—")}</td><td>${esc(s.grade||"—")}</td><td>${esc(s.classOf||"—")}</td>
+      <td>${esc(s.gender||"—")}</td><td>${esc(s.tutor||"—")}</td>
+      <td>${esc(s.guardian||"")}${s.contact?'｜'+esc(s.contact):''}</td>
+      <td>${cnt?`<span class="badge b-blue">${cnt}</span>`:"0"}</td>
+      ${canEdit?`<td><button class="btn sm" onclick="openStudentModal('${s.id}')">編輯</button> <button class="btn sm danger" onclick="deleteStudent('${s.id}')">刪除</button></td>`:""}
+    </tr>`;
+  });
+  h+="</tbody>";
+  document.getElementById("studentTable").innerHTML=h;
+}
+function openStudentModal(id){
+  EDIT_CTX=null;
+  const s=id?DB.students.find(x=>x.id===id):{};
+  const gradeOpts=GRADES.map(g=>`<option ${s.grade===g?"selected":""}>${g}</option>`).join("");
+  setModal(id?"編輯學生資料":"新增學生",`
+    <div class="form-grid">
+      <div><label>學生姓名 <span class="req">*</span></label><input id="s_name" value="${esc(s.name||'')}"></div>
+      <div><label>學號</label><input id="s_no" value="${esc(s.studentNo||'')}"></div>
+      <div><label>年級</label><select id="s_grade"><option value="">—</option>${gradeOpts}</select></div>
+      <div><label>班級</label><input id="s_class" value="${esc(s.classOf||'')}" placeholder="例：三年五班"></div>
+      <div><label>性別</label><select id="s_gender"><option value="">—</option><option ${s.gender==="男"?"selected":""}>男</option><option ${s.gender==="女"?"selected":""}>女</option><option ${s.gender==="其他"?"selected":""}>其他</option></select></div>
+      <div><label>導師</label><input id="s_tutor" value="${esc(s.tutor||'')}"></div>
+      <div><label>監護人</label><input id="s_guardian" value="${esc(s.guardian||'')}"></div>
+      <div><label>聯絡方式</label><input id="s_contact" value="${esc(s.contact||'')}"></div>
+      <div class="full"><label>備註</label><textarea id="s_note">${esc(s.note||'')}</textarea></div>
+    </div>`,
+    [{txt:"取消",cls:"btn",fn:closeModal},{txt:"儲存",cls:"btn primary",fn:()=>saveStudent(id)}]);
+}
+function saveStudent(id){
+  const name=val("s_name"); if(!name){toast("請輸入學生姓名",true);return;}
+  const data={name,studentNo:val("s_no"),grade:val("s_grade"),classOf:val("s_class"),gender:val("s_gender"),
+    tutor:val("s_tutor"),guardian:val("s_guardian"),contact:val("s_contact"),note:val("s_note")};
+  if(id){ Object.assign(DB.students.find(x=>x.id===id),data,{updatedBy:SESSION.name,updatedAt:nowStr()}); audit("編輯學生",name); }
+  else { data.id=uid("s"); data.createdBy=SESSION.name; data.createdAt=nowStr(); DB.students.push(data); audit("新增學生",name); }
+  persist(); initSelects(); renderStudents(); closeModal(); toast("學生資料已儲存");
+}
+function deleteStudent(id){
+  const s=DB.students.find(x=>x.id===id);
+  const cnt=DB.stuEvents.filter(e=>e.studentId===id).length;
+  confirmModal(`確定刪除學生「${esc(s.name)}」？`+(cnt?`<div class="hint warn">注意：此學生仍有 ${cnt} 筆事件紀錄，刪除學生不會刪除事件，但事件將顯示為未指定。</div>`:""),
+    ()=>{ DB.students=DB.students.filter(x=>x.id!==id); persist(); audit("刪除學生",s.name); initSelects(); renderStudents(); toast("已刪除"); });
+}
+
+/* =========================================================
+   學生事件紀錄
+========================================================= */
+function getStuEventFilters(){
+  return {kw:(val("seSearch")||"").toLowerCase(),student:val("sefStudent"),grade:val("sefGrade"),
+    type:val("sefType"),level:val("sefLevel"),status:val("sefStatus")};
+}
+function clearStuEventFilters(){
+  ["seSearch","sefStudent","sefGrade","sefType","sefLevel","sefStatus"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
+  renderStuEvents();
+}
+function stuGrade(studentId){ const s=DB.students.find(x=>x.id===studentId); return s?s.grade:""; }
+function stuClass(studentId){ const s=DB.students.find(x=>x.id===studentId); return s?s.classOf:""; }
+function filteredStuEvents(){
+  const f=getStuEventFilters();
+  return visibleStudentEvents().filter(e=>{
+    if(f.student&&e.studentId!==f.student) return false;
+    if(f.grade&&stuGrade(e.studentId)!==f.grade) return false;
+    if(f.type&&e.type!==f.type) return false;
+    if(f.level&&e.level!==f.level) return false;
+    if(f.status&&e.status!==f.status) return false;
+    if(f.kw){ const blob=[e.no,e.fact,e.location,studentName(e.studentId),e.type].join(" ").toLowerCase(); if(!blob.includes(f.kw)) return false; }
+    return true;
+  }).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+}
+function renderStuEvents(){
+  // 統計卡
+  const all=visibleStudentEvents();
+  const ym=today().slice(0,7);
+  const sMonth=all.filter(e=>(e.date||"").slice(0,7)===ym).length;
+  const sProc=all.filter(e=>e.status==="處理中").length;
+  const sTrack=all.filter(e=>e.status==="追蹤中").length;
+  const sDue=all.filter(e=>{const d=daysUntil(e.followDate);return e.followDate&&e.status!=="已結案"&&d!==null&&d<=7&&d>=0;}).length;
+  const sHigh=all.filter(e=>["高關注","危機"].includes(e.level)&&e.status!=="已結案").length;
+  const stats=[
+    {label:"本月新增",num:sMonth,cls:"blue",icon:"trending",foot:ym},
+    {label:"處理中",num:sProc,cls:"amber",icon:"inbox",foot:"狀態為處理中"},
+    {label:"追蹤中",num:sTrack,cls:"blue",icon:"activity",foot:"狀態為追蹤中"},
+    {label:"即將到期追蹤",num:sDue,cls:"amber",icon:"clock",foot:"7 日內到期"},
+    {label:"高關注 / 危機",num:sHigh,cls:"red",icon:"shieldAlert",foot:"未結案之高關注以上"}
+  ];
+  const sg=document.getElementById("stuStatGrid");
+  if(sg) sg.innerHTML=stats.map(s=>`<div class="stat ${s.cls}"><div class="stat-top"><div class="stat-ic">${iconSvg(s.icon,"sm")}</div><div class="label">${s.label}</div></div><div class="num">${s.num}</div><div class="foot">${s.foot}</div></div>`).join("");
+
+  const list=filteredStuEvents();
+  const canEdit=canStudentManage();
+  let h=`<thead><tr><th>編號</th><th>日期</th><th>學生</th><th>年級 / 班級</th><th>類型</th><th>程度</th><th class="wrap">事實摘要</th><th>狀態</th><th>追蹤日</th><th>操作</th></tr></thead><tbody>`;
+  if(!list.length) h+=`<tr><td colspan="10"><div class="empty">查無符合條件的學生事件</div></td></tr>`;
+  list.forEach(e=>{
+    const d=daysUntil(e.followDate);
+    const dueTag=e.followDate&&e.status!=="已結案"&&d!==null&&d<=7?`<br><span class="badge ${d<0?'b-red':'b-amber'}">${d<0?'逾期'+(-d)+'天':'剩'+d+'天'}</span>`:"";
+    h+=`<tr>
+      <td><b>${esc(e.no)}</b><span class="att-count" data-owner="stuevent:${e.id}"></span>${e.secret?'<br><span class="tag-secret">機密</span>':''}</td>
+      <td>${esc(e.date)}</td>
+      <td>${esc(studentName(e.studentId))}</td>
+      <td>${esc(stuGrade(e.studentId)||"—")}${stuClass(e.studentId)?'<br>'+esc(stuClass(e.studentId)):''}</td>
+      <td><span class="badge b-gray">${esc(e.type)}</span></td>
+      <td><span class="badge ${STU_LEVEL_BADGE[e.level]||'b-gray'}">${esc(e.level)}</span></td>
+      <td class="wrap">${esc((e.fact||"").slice(0,60))}${(e.fact||"").length>60?"…":""}</td>
+      <td><span class="badge ${STU_STATUS_BADGE[e.status]||'b-gray'}">${esc(e.status)}</span></td>
+      <td>${esc(e.followDate||"—")}${dueTag}</td>
+      <td>
+        <button class="btn sm" onclick="viewStuEvent('${e.id}')">檢視</button>
+        ${canEdit?`<button class="btn sm" onclick="openStuEventModal('${e.id}')">編輯</button> <button class="btn sm danger" onclick="deleteStuEvent('${e.id}')">刪除</button>`:""}
+      </td></tr>`;
+  });
+  h+="</tbody>";
+  document.getElementById("stuEventTable").innerHTML=h;
+  updateAttachmentCounts();
+}
+function openStuEventModal(id){
+  const e=id?DB.stuEvents.find(x=>x.id===id):{};
+  const isNew=!id; const eid=id||uid("se"); CUR_STUEVENT_ID=eid;
+  EDIT_CTX={owner:"stuevent:"+eid,isNew,saved:false};
+  const stuOpts=DB.students.map(s=>`<option value="${s.id}" ${e.studentId===s.id?"selected":""}>${esc(s.name)}${s.classOf?'（'+esc(s.classOf)+'）':''}</option>`).join("");
+  const teacherOpts=DB.teachers.map(t=>`<option value="${t.id}" ${e.handlerTeacherId===t.id?"selected":""}>${esc(t.name)}</option>`).join("");
+  const linkOpts=visibleEvents().sort((a,b)=>(b.date||"").localeCompare(a.date)).map(ev=>`<option value="${ev.id}" ${e.linkedEventId===ev.id?"selected":""}>${esc(ev.no)}｜${esc(teacherName(ev.teacherId))}｜${esc(ev.type)}</option>`).join("");
+  setModal(id?"編輯學生事件":"新增學生事件",`
+    <div class="alert info" style="margin-top:0"><span data-icon="shieldCheck" data-icon-cls="sm"></span><div>請以「客觀事實」描述（人、事、時、地、物）。涉及保護案件請依法定時限通報主管機關，本系統僅供行政留存。</div></div>
+    <div class="form-grid">
+      <div><label>事件編號</label><input id="se_no" value="${esc(e.no||nextStuEventNo())}" readonly style="background:var(--gray-bg)"></div>
+      <div><label>狀態</label><select id="se_status">${STU_STATUSES.map(s=>`<option ${e.status===s?"selected":""}>${s}</option>`).join("")}</select></div>
+      <div><label>學生 <span class="req">*</span></label><select id="se_student"><option value="">— 請選擇 —</option>${stuOpts}</select></div>
+      <div><label>事件日期 <span class="req">*</span></label><input type="date" id="se_date" value="${esc(e.date||today())}"></div>
+      <div><label>發生時間</label><input id="se_time" value="${esc(e.time||'')}" placeholder="例：第三節 / 10:30"></div>
+      <div><label>發生地點</label><input id="se_loc" value="${esc(e.location||'')}"></div>
+      <div><label>事件類型 <span class="req">*</span></label><select id="se_type">${STU_EVENT_TYPES.map(t=>`<option ${e.type===t?"selected":""}>${t}</option>`).join("")}</select></div>
+      <div><label>關注程度 <span class="req">*</span></label><select id="se_level">${STU_LEVELS.map(l=>`<option ${e.level===l?"selected":""}>${l}</option>`).join("")}</select></div>
+      <div><label>處理 / 承辦老師</label><select id="se_handler"><option value="">—</option>${teacherOpts}</select></div>
+      <div><label>後續追蹤日期</label><input type="date" id="se_follow" value="${esc(e.followDate||'')}"></div>
+      <div class="full"><label>具體事實描述 <span class="req">*</span></label><textarea id="se_fact" placeholder="客觀描述：何人、於何時、在何地、做了什麼、可查證之情形。">${esc(e.fact||'')}</textarea></div>
+      <div class="full"><label>處理 / 輔導措施</label><textarea id="se_handle">${esc(e.handle||'')}</textarea></div>
+      <div class="full"><label>關聯教師事件（選填）</label><select id="se_link"><option value="">— 無 —</option>${linkOpts}</select>
+        <div class="hint">若此學生事件與某筆教師事件相關（例：教師管教不當 → 受影響學生），可在此連結，方便雙向追蹤。</div></div>
+      <div class="full"><label>佐證附件（照片 JPG / 影片 / 檔案，手機可直接拍照上傳）</label>
+        <div id="seAttArea"></div>
+        <div class="hint">附件依「系統設定」存於本機瀏覽器或 Google Drive。涉及學生影像屬高敏感個資，請依保密原則保管，勿外流。</div></div>
+      <div class="full"><label>備註</label><textarea id="se_note">${esc(e.note||'')}</textarea></div>
+      <div class="full"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="se_secret" ${e.secret?"checked":""} style="width:auto"> 標示為敏感 / 機密個案（如涉保護、性平、家庭因素）</label></div>
+    </div>`,
+    [{txt:"取消",cls:"btn",fn:closeModal},{txt:"儲存事件",cls:"btn primary",fn:()=>saveStuEvent(id)}]);
+  mountAtt("seAttArea","stuevent:"+eid,canStudentManage());
+}
+function saveStuEvent(id){
+  const studentId=val("se_student"), date=val("se_date"), fact=val("se_fact").trim();
+  if(!studentId){toast("請選擇學生",true);return;}
+  if(!date){toast("請填寫事件日期",true);return;}
+  if(fact.length<5){toast("具體事實描述過短，請以客觀事實完整描述",true);return;}
+  const data={no:val("se_no"),date,time:val("se_time"),location:val("se_loc"),studentId,
+    type:val("se_type"),level:val("se_level"),status:val("se_status"),handlerTeacherId:val("se_handler"),
+    followDate:val("se_follow"),fact,handle:val("se_handle"),linkedEventId:val("se_link"),
+    note:val("se_note"),secret:document.getElementById("se_secret").checked};
+  if(id){ const e=DB.stuEvents.find(x=>x.id===id);
+    e.history=e.history||[]; e.history.push({by:SESSION.name,at:nowStr(),note:"編輯事件"});
+    Object.assign(e,data); audit("編輯學生事件",data.no+"｜"+studentName(studentId));
+  } else {
+    data.id=CUR_STUEVENT_ID||uid("se"); data.recorderUser=SESSION.name; data.recorder=SESSION.name; data.createdAt=nowStr();
+    data.history=[{by:SESSION.name,at:nowStr(),note:"建立事件"}];
+    DB.stuEvents.push(data); audit("新增學生事件",data.no+"｜"+studentName(studentId));
+  }
+  if(EDIT_CTX) EDIT_CTX.saved=true;
+  persist(); renderStuEvents(); closeModal(); toast("學生事件已儲存");
+}
+function deleteStuEvent(id){
+  const e=DB.stuEvents.find(x=>x.id===id);
+  confirmModal(`確定刪除學生事件「${esc(e.no)}」？此操作將留下稽核紀錄。`,
+    ()=>{ DB.stuEvents=DB.stuEvents.filter(x=>x.id!==id); attDelByOwner("stuevent:"+id); persist(); audit("刪除學生事件",e.no); renderStuEvents(); toast("已刪除"); });
+}
+function viewStuEvent(id){
+  const e=DB.stuEvents.find(x=>x.id===id);
+  const linked=e.linkedEventId?DB.events.find(x=>x.id===e.linkedEventId):null;
+  const handler=e.handlerTeacherId?teacherName(e.handlerTeacherId):"—";
+  setModal("學生事件詳情　"+esc(e.no),`
+    ${e.secret?'<div class="alert warn"><span data-icon="lock" data-icon-cls="sm"></span><div>此為敏感 / 機密個案，請依保密原則處理，禁止外流。</div></div>':''}
+    <table style="border:1px solid var(--line);border-radius:8px">
+      <tr><th style="width:120px">學生</th><td>${esc(studentName(e.studentId))}</td><th style="width:120px">年級 / 班級</th><td>${esc(stuGrade(e.studentId)||"—")} ${esc(stuClass(e.studentId)||"")}</td></tr>
+      <tr><th>事件日期</th><td>${esc(e.date)}</td><th>發生時間</th><td>${esc(e.time||"—")}</td></tr>
+      <tr><th>發生地點</th><td>${esc(e.location||"—")}</td><th>處理 / 承辦老師</th><td>${esc(handler)}</td></tr>
+      <tr><th>事件類型</th><td><span class="badge b-gray">${esc(e.type)}</span></td><th>關注程度</th><td><span class="badge ${STU_LEVEL_BADGE[e.level]||'b-gray'}">${esc(e.level)}</span></td></tr>
+      <tr><th>狀態</th><td><span class="badge ${STU_STATUS_BADGE[e.status]||'b-gray'}">${esc(e.status)}</span></td><th>追蹤日期</th><td>${esc(e.followDate||"—")}</td></tr>
+      <tr><th>具體事實</th><td colspan="3" class="wrap">${esc(e.fact)}</td></tr>
+      <tr><th>處理 / 輔導措施</th><td colspan="3" class="wrap">${esc(e.handle||"—")}</td></tr>
+      <tr><th>備註</th><td colspan="3" class="wrap">${esc(e.note||"—")}</td></tr>
+      ${linked?`<tr><th>關聯教師事件</th><td colspan="3">${esc(linked.no)}｜${esc(teacherName(linked.teacherId))}｜${esc(linked.type)}（${esc(linked.severity)}）</td></tr>`:''}
+    </table>
+    <div class="section-title"><span data-icon="clipboard"></span>佐證附件（點縮圖或「調閱」即可查看）</div>
+    <div id="viewStuAtt"></div>
+    <div class="section-title"><span data-icon="history"></span>異動歷程</div>
+    <div class="hint">${(e.history||[]).map(h=>`${esc(h.at)}　${esc(h.by)}　${esc(h.note)}`).join("<br>")||"—"}</div>`,
+    [{txt:"關閉",cls:"btn",fn:closeModal}]);
+  mountAtt("viewStuAtt","stuevent:"+id,canStudentManage());
+}
+
+/* =========================================================
    教評會資料彙整
 ========================================================= */
 function renderEvalPage(){ renderEval(); }
@@ -1652,7 +1945,7 @@ function exportCSV(){
 }
 function maskNames(txt){ return (txt||"").replace(/([一-龥]{1})([一-龥])([一-龥])/g,(m,a)=>a+"○○"); }
 function exportJSON(){
-  const data={exportedAt:nowStr(),exportedBy:SESSION.name,teachers:DB.teachers,events:visibleEvents(),counsel:DB.counsel,checklist:DB.checklist};
+  const data={exportedAt:nowStr(),exportedBy:SESSION.name,teachers:DB.teachers,events:visibleEvents(),counsel:DB.counsel,checklist:DB.checklist,students:DB.students,stuEvents:visibleStudentEvents()};
   downloadFile(JSON.stringify(data,null,2),"教師事件系統備份_"+today()+".json","application/json");
   audit("匯出 JSON","全部資料");
 }
@@ -1664,6 +1957,7 @@ function importJSON(ev){
       try{
         const d=JSON.parse(r.result);
         DB.teachers=d.teachers||[]; DB.events=d.events||[]; DB.counsel=d.counsel||[]; DB.checklist=d.checklist||{};
+        DB.students=d.students||[]; DB.stuEvents=d.stuEvents||[];
         persist(); audit("匯入 JSON","還原備份資料"); initSelects(); nav("dashboard"); toast("匯入完成");
       }catch(e){ toast("檔案格式錯誤",true); }
     });
@@ -1852,7 +2146,14 @@ function loadDemo(force){
   DB.events=[e1,e2,e3];
   DB.counsel=[{id:uid("c"),eventId:e1.id,date:addDays(-12),staff:"教務主任、教學組長",resp:"教師表示因班級秩序與個人健康因素影響教學進度，願配合改善。",goal:"兩週內依進度完成教學並提交教學計畫。",measure:"由教學組長協助共同備課，每週檢視進度。",nextDate:addDays(2),cooperate:"是",result:"部分改善",refer:false,createdBy:"系統",createdAt:nowStr()}];
   DB.checklist={[e1.id]:{fact:true,meta:true,evidence:true,notify:true,talk:true,observe:true,plan:true,followup:false,triage:true,privacy:true,procedure:false,_updatedBy:"系統",_updatedAt:nowStr()}};
-  DB.audit=[{id:uid("a"),time:nowStr(),user:"系統",role:"系統管理員",action:"載入示範資料",detail:"3 教師 / 3 事件 / 1 輔導紀錄"}];
+  // 學生示範資料
+  const s1={id:uid("s"),name:"小華",studentNo:"110023",grade:"七年級",classOf:"七年二班",gender:"男",tutor:"陳美華",guardian:"陳○○（父）",contact:"0912-000-000",note:"",createdBy:"系統",createdAt:nowStr()};
+  const s2={id:uid("s"),name:"小婷",studentNo:"110045",grade:"八年級",classOf:"八年一班",gender:"女",tutor:"林志強",guardian:"王○○（母）",contact:"0922-111-111",note:"",createdBy:"系統",createdAt:nowStr()};
+  DB.students=[s1,s2];
+  const se1={id:uid("se"),no:"SV-"+today().replace(/-/g,"")+"-001",date:addDays(-8),time:"第三節",location:"七年二班教室",studentId:s1.id,type:"偏差行為／獎懲",level:"需注意",status:"追蹤中",handlerTeacherId:t2.id,followDate:addDays(5),fact:"上課與同學發生口角並推擠，經導師了解後雙方和解，記錄在案以利後續觀察。",handle:"導師個別談話，請家長配合留意情緒管理。",linkedEventId:"",note:"",secret:false,recorder:"系統",recorderUser:"系統",createdAt:nowStr(),history:[{by:"系統",at:nowStr(),note:"建立事件"}]};
+  const se2={id:uid("se"),no:"SV-"+today().replace(/-/g,"")+"-002",date:addDays(-3),time:"午休",location:"輔導室",studentId:s2.id,type:"輔導個案紀錄",level:"高關注",status:"處理中",handlerTeacherId:t3.id,followDate:addDays(7),fact:"近期情緒低落、缺課頻率上升，導師轉介輔導室晤談，了解家庭因素影響。",handle:"安排認輔，定期晤談並與家長保持聯繫。",linkedEventId:"",note:"屬敏感個案，注意保密。",secret:true,recorder:"系統",recorderUser:"系統",createdAt:nowStr(),history:[{by:"系統",at:nowStr(),note:"建立事件"}]};
+  DB.stuEvents=[se1,se2];
+  DB.audit=[{id:uid("a"),time:nowStr(),user:"系統",role:"系統管理員",action:"載入示範資料",detail:"3 教師 / 3 事件 / 1 輔導紀錄 / 2 學生 / 2 學生事件"}];
   persist(); save(LS.seeded,true);
   if(force){ initSelects(); nav("dashboard"); toast("已重新載入示範資料"); }
 }
