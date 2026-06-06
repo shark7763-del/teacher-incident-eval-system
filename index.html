@@ -356,7 +356,7 @@
 
     <!-- 首次設定面板 -->
     <div id="setupPanel" style="display:none">
-      <div class="alert info" style="margin:0 0 14px">首次使用本裝置，請先建立系統管理員帳號。</div>
+      <div class="alert info" style="margin:0 0 14px">首次使用本裝置，請先建立系統管理員帳號。<br>若這台是要<b>連到既有雲端系統</b>（例如手機），請改用下方「多裝置連線雲端」。</div>
       <label>顯示姓名</label>
       <input id="setupName" type="text" placeholder="例：王小明" />
       <label>管理員帳號</label>
@@ -367,6 +367,15 @@
       <input id="setupPass2" type="password" autocomplete="new-password" />
       <button onclick="doSetup()">建立並開始使用</button>
     </div>
+
+    <!-- 多裝置：連線雲端登入（手機/新裝置用）-->
+    <div style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
+      <div style="font-size:var(--fs-sm);font-weight:600;color:var(--ink-2);margin-bottom:8px;display:flex;align-items:center;gap:6px"><span data-icon="cloud" data-icon-cls="sm"></span>多裝置連線雲端</div>
+      <input id="cloudUrl" type="text" placeholder="貼上 GAS /exec 網址" autocomplete="off" />
+      <button type="button" onclick="connectCloud()" style="background:#fff;color:var(--brand-ink);border:1px solid var(--brand)">連線雲端並用雲端帳號登入</button>
+      <div id="cloudConnMsg" class="login-note" style="margin-top:8px;text-align:left"></div>
+    </div>
+
     <div class="login-note">
       ⚠ 本系統處理教師個資與敏感案件，登入即表示您已知悉<br>
       <b>程序正義、保密原則與個資保護</b>之規範，不得將資料外流。
@@ -1164,6 +1173,18 @@ async function hashPw(pw){
 function showAuthPanel(which){
   document.getElementById("loginPanel").style.display = which==="login"?"":"none";
   document.getElementById("setupPanel").style.display = which==="setup"?"":"none";
+}
+/* 全新裝置（手機）在登入畫面直接連雲端，不必先建本機帳號 */
+function connectCloud(){
+  const u=(document.getElementById("cloudUrl").value||"").trim();
+  if(!u){ toast("請貼上 GAS /exec 網址",true); return; }
+  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){ if(!confirm("網址看起來不像 GAS 的 /exec 結尾，仍要使用嗎？")) return; }
+  save(GAS_KEY,u); save(SYNC_KEY,true);
+  const msg=document.getElementById("cloudConnMsg");
+  if(msg) msg.textContent="✔ 已連線並啟用同步，請於上方用「雲端帳號」登入。";
+  showAuthPanel("login");
+  toast("已連線雲端，請用雲端帳號登入");
+  const lu=document.getElementById("loginUser"); if(lu) lu.focus();
 }
 async function doLogin(){
   const u=val("loginUser"), p=document.getElementById("loginPass").value;
@@ -2296,14 +2317,16 @@ function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toIS
   if(!load(LS.seeded,false)){ loadDemo(false); reloadDB(); }
   const s=load(LS.session,null);
   if(s){ SESSION=s; startApp(); return; }
-  // 未登入：已有帳號→登入畫面；尚無帳號→首次建立管理員
+  // 未登入：已有帳號 or 已啟用雲端→登入畫面；全新且未連雲端→首次建立管理員
   const hasAcc=loadAccounts().length>0;
-  showAuthPanel(hasAcc?"login":"setup");
+  const showLogin=hasAcc||syncOn()||!!gasUrl();
+  showAuthPanel(showLogin?"login":"setup");
+  const cu=document.getElementById("cloudUrl"); if(cu) cu.value=gasUrl();
   const lp=document.getElementById("loginPass");
   if(lp) lp.addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
   const sp2=document.getElementById("setupPass2");
   if(sp2) sp2.addEventListener("keydown",e=>{ if(e.key==="Enter") doSetup(); });
-  const focusEl=document.getElementById(hasAcc?"loginUser":"setupName");
+  const focusEl=document.getElementById(showLogin?"loginUser":"setupName");
   if(focusEl) focusEl.focus();
 })();
 </script>
