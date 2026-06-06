@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>學校教師事件紀錄與教評輔助系統</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --panel:#ffffff; --ink:#1f2a37; --muted:#667085;
+    --line:#e4e8ee; --brand:#2b5f9e; --brand-d:#214b7e;
+    --red:#c0392b; --red-bg:#fdecea; --amber:#b7791f; --amber-bg:#fef6e7;
+    --green:#1e7e44; --green-bg:#e8f6ee; --blue:#2b5f9e; --blue-bg:#eaf1f9;
+    --gray:#667085; --gray-bg:#eef1f5;
+    --shadow:0 1px 3px rgba(16,24,40,.08),0 1px 2px rgba(16,24,40,.06);
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Segoe UI","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); font-size:14px; line-height:1.55;
+  }
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit;font-size:14px}
+  a{color:var(--brand)}
+
+  /* ---------- Login ---------- */
+  #loginScreen{
+    position:fixed;inset:0;background:linear-gradient(135deg,#214b7e,#2b5f9e);
+    display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px;
+  }
+  .login-card{
+    background:#fff;border-radius:16px;box-shadow:0 18px 45px rgba(0,0,0,.25);
+    width:100%;max-width:420px;padding:34px 30px;
+  }
+  .login-card h1{font-size:20px;margin:0 0 4px}
+  .login-card p.sub{color:var(--muted);margin:0 0 22px;font-size:13px}
+  .login-card label{display:block;font-weight:600;margin:14px 0 6px;font-size:13px}
+  .login-card select,.login-card input{
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;
+  }
+  .login-card button{
+    width:100%;margin-top:22px;padding:12px;border:0;border-radius:9px;
+    background:var(--brand);color:#fff;font-size:15px;font-weight:600;
+  }
+  .login-card button:hover{background:var(--brand-d)}
+  .login-note{margin-top:16px;font-size:12px;color:var(--muted);text-align:center;line-height:1.7}
+
+  /* ---------- Layout ---------- */
+  #app{display:none;min-height:100vh}
+  .topbar{
+    position:sticky;top:0;z-index:50;background:var(--brand);color:#fff;
+    display:flex;align-items:center;gap:12px;padding:10px 16px;box-shadow:var(--shadow);
+  }
+  .topbar .logo{font-weight:700;font-size:16px;white-space:nowrap}
+  .topbar .spacer{flex:1}
+  .topbar .who{font-size:13px;opacity:.95;text-align:right;line-height:1.3}
+  .topbar .who b{display:block}
+  .topbar button.logout{
+    background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+    color:#fff;border-radius:8px;padding:7px 12px;font-size:13px;
+  }
+  .topbar button.logout:hover{background:rgba(255,255,255,.28)}
+  .menu-toggle{display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 10px;font-size:16px}
+
+  .shell{display:flex;align-items:flex-start}
+  .sidebar{
+    width:212px;flex:0 0 212px;background:var(--panel);border-right:1px solid var(--line);
+    min-height:calc(100vh - 52px);padding:12px 8px;position:sticky;top:52px;
+  }
+  .nav-item{
+    display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:9px;
+    color:var(--ink);font-size:14px;cursor:pointer;margin-bottom:2px;user-select:none;
+  }
+  .nav-item .ic{width:20px;text-align:center}
+  .nav-item:hover{background:var(--gray-bg)}
+  .nav-item.active{background:var(--blue-bg);color:var(--brand);font-weight:600}
+  .nav-item.disabled{opacity:.4;cursor:not-allowed}
+  .nav-sep{font-size:11px;color:var(--muted);padding:12px 12px 4px;letter-spacing:.05em}
+
+  .main{flex:1;padding:20px 22px;min-width:0}
+  .page{display:none}
+  .page.active{display:block;animation:fade .2s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+  .page-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  .page-head h2{font-size:19px;margin:0}
+  .page-head .desc{color:var(--muted);font-size:13px;width:100%;margin-top:-6px}
+  .page-head .spacer{flex:1}
+
+  /* ---------- Cards / grid ---------- */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card-pad{padding:18px}
+  .grid{display:grid;gap:14px}
+  .stat-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+  .stat{padding:16px 18px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
+  .stat .label{color:var(--muted);font-size:13px;margin-bottom:6px}
+  .stat .num{font-size:30px;font-weight:700;line-height:1}
+  .stat .foot{font-size:12px;color:var(--muted);margin-top:6px}
+  .stat.red{border-left:4px solid var(--red)} .stat.red .num{color:var(--red)}
+  .stat.amber{border-left:4px solid var(--amber)} .stat.amber .num{color:var(--amber)}
+  .stat.green{border-left:4px solid var(--green)} .stat.green .num{color:var(--green)}
+  .stat.blue{border-left:4px solid var(--blue)} .stat.blue .num{color:var(--blue)}
+
+  /* ---------- Buttons ---------- */
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:8px 14px;border-radius:9px;font-size:13.5px;font-weight:500}
+  .btn:hover{background:var(--gray-bg)}
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.primary:hover{background:var(--brand-d)}
+  .btn.danger{background:#fff;border-color:var(--red);color:var(--red)}
+  .btn.danger:hover{background:var(--red-bg)}
+  .btn.sm{padding:5px 10px;font-size:12.5px;border-radius:7px}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  /* ---------- Table ---------- */
+  .table-wrap{overflow-x:auto;border-radius:var(--radius)}
+  table{width:100%;border-collapse:collapse;background:#fff;font-size:13.5px}
+  th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap}
+  th{background:#f8fafc;color:var(--muted);font-weight:600;font-size:12.5px;position:sticky;top:0}
+  td.wrap,th.wrap{white-space:normal;min-width:180px}
+  tbody tr:hover{background:#fafbfc}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+
+  /* ---------- Badges ---------- */
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+  .b-red{background:var(--red-bg);color:var(--red)}
+  .b-amber{background:var(--amber-bg);color:var(--amber)}
+  .b-green{background:var(--green-bg);color:var(--green)}
+  .b-blue{background:var(--blue-bg);color:var(--blue)}
+  .b-gray{background:var(--gray-bg);color:var(--gray)}
+  .tag-secret{background:#3b0a0a;color:#ffd9d4;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600}
+
+  /* ---------- Filter bar ---------- */
+  .filterbar{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:12px;color:var(--muted);font-weight:600}
+  .field input,.field select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;min-width:140px}
+
+  /* ---------- Modal ---------- */
+  .modal-bg{position:fixed;inset:0;background:rgba(16,24,40,.45);display:none;align-items:flex-start;justify-content:center;z-index:200;padding:30px 14px;overflow:auto}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:14px;width:100%;max-width:760px;box-shadow:0 22px 60px rgba(0,0,0,.3);animation:fade .2s}
+  .modal-head{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line)}
+  .modal-head h3{margin:0;font-size:17px}
+  .modal-head .spacer{flex:1}
+  .modal-head .x{background:none;border:0;font-size:22px;color:var(--muted);line-height:1}
+  .modal-body{padding:20px;max-height:70vh;overflow:auto}
+  .modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .form-grid .full{grid-column:1/-1}
+  .form-grid label{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+  .form-grid label .req{color:var(--red)}
+  .form-grid input,.form-grid select,.form-grid textarea{
+    width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:#fff;
+  }
+  .form-grid textarea{resize:vertical;min-height:74px}
+  .hint{font-size:12px;color:var(--muted);margin-top:4px}
+  .hint.warn{color:var(--red)}
+
+  .checkbox-row{display:flex;flex-wrap:wrap;gap:8px 16px}
+  .checkbox-row label{display:inline-flex;align-items:center;gap:6px;font-weight:500;margin:0}
+  .checkbox-row input{width:auto}
+
+  /* ---------- Suggestion box ---------- */
+  .suggest-box{background:var(--blue-bg);border:1px solid #cfe0f2;border-radius:10px;padding:14px 16px;margin-top:6px}
+  .suggest-box h4{margin:0 0 8px;font-size:14px;color:var(--brand)}
+  .suggest-box ul{margin:0;padding-left:20px}
+  .suggest-box li{margin:3px 0}
+  .disclaimer{font-size:12px;color:var(--red);margin-top:10px;font-weight:600}
+
+  /* ---------- Chart ---------- */
+  .bar-chart{display:flex;flex-direction:column;gap:10px}
+  .bar-row{display:flex;align-items:center;gap:10px}
+  .bar-row .blabel{width:130px;font-size:13px;color:var(--ink);flex:0 0 130px}
+  .bar-track{flex:1;background:var(--gray-bg);border-radius:6px;height:22px;overflow:hidden}
+  .bar-fill{height:100%;background:var(--brand);border-radius:6px;display:flex;align-items:center;justify-content:flex-end;color:#fff;font-size:11px;padding-right:6px;min-width:22px}
+  .bar-row .bval{width:36px;text-align:right;font-weight:600;font-size:13px}
+
+  /* ---------- Timeline ---------- */
+  .timeline{position:relative;padding-left:24px}
+  .timeline::before{content:"";position:absolute;left:7px;top:4px;bottom:4px;width:2px;background:var(--line)}
+  .tl-item{position:relative;margin-bottom:16px}
+  .tl-item::before{content:"";position:absolute;left:-21px;top:4px;width:12px;height:12px;border-radius:50%;background:var(--brand);border:2px solid #fff;box-shadow:0 0 0 2px var(--line)}
+  .tl-item.red::before{background:var(--red)}
+  .tl-item.amber::before{background:var(--amber)}
+  .tl-item .tl-date{font-size:12px;color:var(--muted)}
+  .tl-item .tl-card{background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px 13px;margin-top:4px}
+
+  /* ---------- Checklist ---------- */
+  .checklist label{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;cursor:pointer}
+  .checklist label:hover{background:#fafbfc}
+  .checklist input{margin-top:3px;width:18px;height:18px}
+  .checklist .ck-txt{flex:1}
+  .checklist .ck-txt small{display:block;color:var(--muted);font-size:12px}
+  .progress{height:10px;background:var(--gray-bg);border-radius:6px;overflow:hidden;margin:8px 0 16px}
+  .progress>div{height:100%;background:var(--green);transition:width .3s}
+
+  .section-title{font-size:15px;font-weight:700;margin:22px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--line);display:flex;align-items:center;gap:8px}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1f2a37;color:#fff;padding:11px 20px;border-radius:10px;font-size:14px;z-index:500;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
+  .toast.err{background:var(--red)}
+
+  .pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .alert{padding:11px 14px;border-radius:9px;font-size:13px;margin-bottom:12px}
+  .alert.warn{background:var(--amber-bg);color:var(--amber);border:1px solid #f3dca0}
+  .alert.info{background:var(--blue-bg);color:var(--brand);border:1px solid #cfe0f2}
+
+  @media (max-width:880px){
+    .sidebar{position:fixed;left:0;top:52px;bottom:0;z-index:60;transform:translateX(-100%);transition:transform .25s;box-shadow:6px 0 18px rgba(0,0,0,.12)}
+    .sidebar.open{transform:none}
+    .menu-toggle{display:inline-block}
+    .form-grid{grid-template-columns:1fr}
+    .topbar .who b{font-size:13px}
+    .bar-row .blabel{flex:0 0 92px;width:92px;font-size:12px}
+  }
+
+  /* ---------- Attachments ---------- */
+  .att-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .att-actions label{cursor:pointer}
+  .att-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+  .att-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  .att-thumb{position:relative;height:96px;background:#0c1116;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden}
+  .att-thumb img{width:100%;height:100%;object-fit:cover}
+  .att-thumb .att-ic{font-size:34px}
+  .att-play{position:absolute;color:#fff;font-size:22px;background:rgba(0,0,0,.5);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;padding-left:3px}
+  .att-name{font-size:12px;padding:6px 8px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+  .att-meta{font-size:11px;color:var(--muted);padding:0 8px}
+  .att-btns{display:flex;gap:4px;padding:6px 8px 8px;flex-wrap:wrap}
+  .att-count{display:inline-block;margin-left:4px;color:var(--brand);font-size:12px;font-weight:600}
+  #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:600;padding:18px}
+  #lightbox.open{display:flex}
+  .lb-bar{color:#fff;display:flex;gap:12px;align-items:center;margin-bottom:12px;width:100%;max-width:94vw;font-size:14px}
+  .lb-bar .spacer{flex:1}
+  .lb-bar button{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:8px 14px;font-size:13px}
+  .lb-bar button:hover{background:rgba(255,255,255,.3)}
+  #lbBody{max-width:94vw;max-height:80vh;display:flex;align-items:center;justify-content:center}
+  #lbBody img,#lbBody video{max-width:94vw;max-height:80vh;border-radius:8px;background:#000}
+
+  /* ---------- Print ---------- */
+  @media print{
+    .topbar,.sidebar,.menu-toggle,.no-print,.btn,.filterbar{display:none!important}
+    .main{padding:0}
+    body{background:#fff}
+    .card{box-shadow:none;border:1px solid #ccc}
+    .page{display:none!important}
+    #printArea{display:block!important}
+  }
+  #printArea{display:none}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>學校教師事件紀錄與教評輔助系統</h1>
+    <p class="sub">Faculty Incident Record & Evaluation Support System</p>
+    <label>登入身分（模擬登入）</label>
+    <select id="loginRole">
+      <option value="principal">校長</option>
+      <option value="hr">人事主任</option>
+      <option value="director">教務 / 學務主任</option>
+      <option value="staff">導師 / 行政人員</option>
+      <option value="committee">教評委員</option>
+      <option value="admin">系統管理員</option>
+    </select>
+    <label>姓名</label>
+    <input id="loginName" type="text" placeholder="請輸入您的姓名" />
+    <button onclick="doLogin()">登入系統</button>
+    <div class="login-note">
+      ⚠ 本系統處理教師個資與敏感案件，登入即表示您已知悉<br>
+      <b>程序正義、保密原則與個資保護</b>之規範，不得將資料外流。
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <div class="topbar">
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+    <div class="logo">🏫 教師事件紀錄與教評輔助系統</div>
+    <div class="spacer"></div>
+    <div class="who">
+      <b id="barName">—</b>
+      <span id="barRole">—</span>
+    </div>
+    <button class="logout" onclick="doLogout()">登出</button>
+  </div>
+
+  <div class="shell">
+    <nav class="sidebar" id="sidebar">
+      <div class="nav-sep">主功能</div>
+      <div class="nav-item active" data-page="dashboard" onclick="nav('dashboard')"><span class="ic">📊</span>首頁儀表板</div>
+      <div class="nav-item" data-page="teachers" onclick="nav('teachers')"><span class="ic">👩‍🏫</span>教師基本資料</div>
+      <div class="nav-item" data-page="events" onclick="nav('events')"><span class="ic">📝</span>事件紀錄管理</div>
+      <div class="nav-item" data-page="triage" onclick="nav('triage')"><span class="ic">🔀</span>案件分流建議</div>
+      <div class="nav-item" data-page="counsel" onclick="nav('counsel')"><span class="ic">🤝</span>晤談與輔導改善</div>
+      <div class="nav-sep">教評與檢核</div>
+      <div class="nav-item" data-page="eval" onclick="nav('eval')"><span class="ic">📑</span>教評會資料彙整</div>
+      <div class="nav-item" data-page="checklist" onclick="nav('checklist')"><span class="ic">✅</span>程序檢核表</div>
+      <div class="nav-sep">系統</div>
+      <div class="nav-item" data-page="export" onclick="nav('export')"><span class="ic">📤</span>匯出與報告</div>
+      <div class="nav-item" data-page="audit" onclick="nav('audit')"><span class="ic">🗂️</span>操作紀錄</div>
+      <div class="nav-item" data-page="settings" onclick="nav('settings')"><span class="ic">⚙️</span>系統設定</div>
+    </nav>
+
+    <main class="main">
+
+      <!-- ===== DASHBOARD ===== -->
+      <section class="page active" id="page-dashboard">
+        <div class="page-head">
+          <h2>首頁儀表板</h2>
+          <div class="desc">本系統旨在以「客觀事實」協助行政程序與教評資料彙整，非作為單向蒐集教師把柄之用途。</div>
+        </div>
+        <div class="grid stat-grid" id="statGrid"></div>
+
+        <div class="grid" style="grid-template-columns:1.3fr 1fr;margin-top:16px" id="dashRow">
+          <div class="card card-pad">
+            <div class="section-title" style="margin-top:0">📈 事件類型統計</div>
+            <div class="bar-chart" id="typeChart"></div>
+          </div>
+          <div class="card card-pad">
+            <div class="section-title" style="margin-top:0">⏰ 即將到期 / 高風險提醒</div>
+            <div id="alertList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== TEACHERS ===== -->
+      <section class="page" id="page-teachers">
+        <div class="page-head">
+          <h2>教師基本資料管理</h2>
+          <div class="spacer"></div>
+          <button class="btn primary" id="btnAddTeacher" onclick="openTeacherModal()">＋ 新增教師</button>
+        </div>
+        <div class="filterbar">
+          <div class="field"><label>關鍵字查詢</label><input id="teacherSearch" placeholder="姓名 / 科目 / 職務" oninput="renderTeachers()"></div>
+        </div>
+        <div class="card table-wrap">
+          <table id="teacherTable"></table>
+        </div>
+      </section>
+
+      <!-- ===== EVENTS ===== -->
+      <section class="page" id="page-events">
+        <div class="page-head">
+          <h2>事件紀錄管理</h2>
+          <div class="spacer"></div>
+          <button class="btn" onclick="nav('timeline')" id="btnTimeline">🕒 時間軸</button>
+          <button class="btn primary" id="btnAddEvent" onclick="openEventModal()">＋ 新增事件</button>
+        </div>
+        <div class="alert info">每筆事件應以<b>具體、可查證的客觀事實</b>描述（人、事、時、地、物），避免僅記錄主觀評論或情緒性用語。</div>
+        <div class="filterbar">
+          <div class="field"><label>關鍵字</label><input id="evSearch" placeholder="編號 / 事實 / 地點" oninput="renderEvents()"></div>
+          <div class="field"><label>涉及教師</label><select id="evfTeacher" onchange="renderEvents()"></select></div>
+          <div class="field"><label>事件類型</label><select id="evfType" onchange="renderEvents()"></select></div>
+          <div class="field"><label>嚴重程度</label><select id="evfSeverity" onchange="renderEvents()"></select></div>
+          <div class="field"><label>案件狀態</label><select id="evfStatus" onchange="renderEvents()"></select></div>
+          <div class="field"><label>起始日期</label><input type="date" id="evfFrom" onchange="renderEvents()"></div>
+          <div class="field"><label>結束日期</label><input type="date" id="evfTo" onchange="renderEvents()"></div>
+          <div class="field"><label>&nbsp;</label><button class="btn" onclick="clearEventFilters()">清除篩選</button></div>
+        </div>
+        <div class="card table-wrap">
+          <table id="eventTable"></table>
+        </div>
+      </section>
+
+      <!-- ===== TIMELINE ===== -->
+      <section class="page" id="page-timeline">
+        <div class="page-head">
+          <h2>事件時間軸</h2>
+          <div class="spacer"></div>
+          <select id="tlTeacher" class="btn" style="padding:8px 12px" onchange="renderTimeline()"></select>
+          <button class="btn" onclick="nav('events')">← 回事件列表</button>
+        </div>
+        <div class="card card-pad"><div class="timeline" id="timelineBox"></div></div>
+      </section>
+
+      <!-- ===== TRIAGE ===== -->
+      <section class="page" id="page-triage">
+        <div class="page-head">
+          <h2>案件分流建議</h2>
+          <div class="desc">系統依事件類型與嚴重程度提供「行政處理建議」。本建議僅供參考，<b>不得直接判定教師是否適任</b>，正式處理仍須依法定程序辦理。</div>
+        </div>
+        <div class="card card-pad" style="margin-bottom:16px">
+          <div class="form-grid">
+            <div><label>選擇事件</label><select id="triageEvent" onchange="renderTriage()"></select></div>
+            <div><label>或自行模擬</label>
+              <div style="display:flex;gap:8px">
+                <select id="triageTypeSim" onchange="renderTriageSim()" style="flex:1;padding:9px;border:1px solid var(--line);border-radius:8px"></select>
+                <select id="triageSevSim" onchange="renderTriageSim()" style="flex:1;padding:9px;border:1px solid var(--line);border-radius:8px"></select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="triageResult"></div>
+      </section>
+
+      <!-- ===== COUNSEL ===== -->
+      <section class="page" id="page-counsel">
+        <div class="page-head">
+          <h2>行政晤談與輔導改善紀錄</h2>
+          <div class="spacer"></div>
+          <button class="btn primary" id="btnAddCounsel" onclick="openCounselModal()">＋ 新增晤談 / 輔導紀錄</button>
+        </div>
+        <div class="filterbar">
+          <div class="field"><label>對應教師</label><select id="cfTeacher" onchange="renderCounsel()"></select></div>
+          <div class="field"><label>改善結果</label><select id="cfResult" onchange="renderCounsel()"></select></div>
+        </div>
+        <div class="card table-wrap"><table id="counselTable"></table></div>
+      </section>
+
+      <!-- ===== EVAL ===== -->
+      <section class="page" id="page-eval">
+        <div class="page-head">
+          <h2>教評會資料彙整</h2>
+          <div class="spacer"></div>
+          <select id="evalTeacher" class="btn" style="padding:8px 12px" onchange="renderEval()"></select>
+          <button class="btn" onclick="printEvalPackage()">🖨️ 列印資料包</button>
+        </div>
+        <div id="evalContent"></div>
+      </section>
+
+      <!-- ===== CHECKLIST ===== -->
+      <section class="page" id="page-checklist">
+        <div class="page-head">
+          <h2>程序檢核表</h2>
+          <div class="spacer"></div>
+          <select id="ckEvent" class="btn" style="padding:8px 12px" onchange="loadChecklist()"></select>
+        </div>
+        <div class="alert info">請就選定案件逐項檢核程序完備性，作為是否進入下一階段（如校事會議、考核或教評）之依據。</div>
+        <div class="card card-pad">
+          <div class="progress"><div id="ckProgress" style="width:0%"></div></div>
+          <div id="ckPercent" style="margin-bottom:14px;font-weight:600;color:var(--muted)"></div>
+          <div class="checklist" id="checklistBox"></div>
+          <div style="margin-top:14px;text-align:right">
+            <button class="btn primary" onclick="saveChecklist()">💾 儲存檢核結果</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== EXPORT ===== -->
+      <section class="page" id="page-export">
+        <div class="page-head"><h2>匯出與報告</h2></div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+          <div class="card card-pad">
+            <div class="section-title" style="margin-top:0">📄 資料匯出</div>
+            <p class="hint">匯出全部事件 / 教師 / 輔導紀錄資料，供備份或轉移。<br>※ 照片 / 影片附件儲存於本機瀏覽器，不含於 CSV / JSON，請另行於各案件下載保存。</p>
+            <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px">
+              <input type="checkbox" id="maskStudent" checked> 匯出時隱藏學生姓名（去識別化）
+            </label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn" onclick="exportCSV()">⬇ 匯出 CSV（事件）</button>
+              <button class="btn" onclick="exportJSON()">⬇ 匯出 JSON（全部）</button>
+            </div>
+          </div>
+          <div class="card card-pad">
+            <div class="section-title" style="margin-top:0">🖨️ 列印報告</div>
+            <p class="hint">產生可列印的 HTML 報告或教評會資料包。</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn" onclick="printEventReport()">🖨️ 事件總表報告</button>
+              <button class="btn" onclick="nav('eval')">📑 前往教評資料包</button>
+            </div>
+          </div>
+          <div class="card card-pad">
+            <div class="section-title" style="margin-top:0">📥 匯入備份</div>
+            <p class="hint">由先前匯出的 JSON 還原資料（將覆蓋現有資料）。</p>
+            <input type="file" id="importFile" accept="application/json" onchange="importJSON(event)" style="font-size:13px">
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== AUDIT ===== -->
+      <section class="page" id="page-audit">
+        <div class="page-head">
+          <h2>操作紀錄（稽核軌跡）</h2>
+          <div class="desc">所有新增、修改、刪除、匯出與登入皆留存紀錄，落實可問責性與保密原則。</div>
+        </div>
+        <div class="card table-wrap"><table id="auditTable"></table></div>
+      </section>
+
+      <!-- ===== SETTINGS ===== -->
+      <section class="page" id="page-settings">
+        <div class="page-head"><h2>系統設定</h2></div>
+        <div class="card card-pad" style="margin-bottom:14px">
+          <div class="section-title" style="margin-top:0">☁️ Google Drive 雲端附件（選用）</div>
+          <p class="hint">設定後，照片 / 影片改存到你的 Google Drive，並可<b>跨裝置調閱</b>；未設定則存在本機瀏覽器。部署方式請見專案資料夾內的 <code>Code.gs</code> 檔開頭說明。</p>
+          <label style="font-size:13px;font-weight:600;display:block;margin-top:6px">GAS 網頁應用程式 URL（/exec 結尾）</label>
+          <input id="gasUrlInput" placeholder="https://script.google.com/macros/s/..../exec" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;margin:6px 0 10px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn primary" onclick="saveGasUrl()">儲存並啟用</button>
+            <button class="btn" onclick="testGas()">測試連線</button>
+            <button class="btn" onclick="syncFromCloud(true)">↻ 從雲端同步清單</button>
+            <button class="btn danger" onclick="clearGasUrl()">改回本機儲存</button>
+          </div>
+          <div id="gasStatus" class="hint" style="margin-top:8px"></div>
+          <div class="alert warn" style="margin-top:12px">⚠ 使用個人 Gmail 的 Drive：上傳檔案會設為「知道連結者可檢視」。本系統含學生影像等敏感個資，請務必<b>妥善保管網址、限定人員存取</b>；正式上線強烈建議改用學校 Google Workspace 帳號並設定資料夾權限。</div>
+        </div>
+        <div class="card card-pad" style="margin-bottom:14px">
+          <div class="section-title" style="margin-top:0">🔐 角色權限對照</div>
+          <div class="table-wrap"><table id="roleTable"></table></div>
+        </div>
+        <div class="card card-pad">
+          <div class="section-title" style="margin-top:0">🧪 範例資料 / 重置</div>
+          <p class="hint">系統首次使用會自動載入少量示範資料以利操作。可重新載入或清空。</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" onclick="loadDemo(true)">重新載入示範資料</button>
+            <button class="btn danger" onclick="wipeAll()">⚠ 清空所有資料</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">標題</h3>
+      <div class="spacer"></div>
+      <button class="x" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div id="printArea"></div>
+
+<!-- ===== 附件檢視燈箱 ===== -->
+<div id="lightbox" onclick="if(event.target.id==='lightbox')closeLb()">
+  <div class="lb-bar">
+    <span id="lbName"></span>
+    <div class="spacer"></div>
+    <button onclick="dlCurrentLb()">⬇ 下載</button>
+    <button onclick="closeLb()">關閉 ✕</button>
+  </div>
+  <div id="lbBody"></div>
+</div>
+
+<script>
+/* =========================================================
+   常數與設定
+========================================================= */
+const LS = {
+  teachers:"fir_teachers", events:"fir_events", counsel:"fir_counsel",
+  audit:"fir_audit", checklist:"fir_checklist", session:"fir_session", seeded:"fir_seeded"
+};
+
+const EVENT_TYPES = ["教學不力","輔導管教不當","行政違失","疑似不適任","性平或兒少保護","其他"];
+const SEVERITIES  = ["輕微","中度","重大","緊急"];
+const STATUSES    = ["草稿","待審核","追蹤中","已結案","送教評"];
+const IMPACTS     = ["學生","班級","家長","同仁","行政"];
+const COUNSEL_RESULTS = ["有改善","部分改善","無改善","待觀察"];
+
+const ROLES = {
+  principal:{name:"校長",      perms:["view","review","export","all_events","manage_event","manage_counsel","checklist","eval"]},
+  hr:       {name:"人事主任",  perms:["view","export","all_events","checklist","eval","manage_counsel"]},
+  director: {name:"教務 / 學務主任", perms:["view","all_events","manage_event","manage_counsel","checklist","eval","export"]},
+  staff:    {name:"導師 / 行政人員", perms:["view_own","manage_own_event"]},
+  committee:{name:"教評委員",  perms:["view_sent","eval"]},
+  admin:    {name:"系統管理員",perms:["view","export","all_events","manage_event","manage_counsel","checklist","eval","settings","review"]}
+};
+
+const ROLE_MATRIX = [
+  ["功能 / 角色","校長","人事主任","教務/學務","導師/行政","教評委員","系統管理員"],
+  ["檢視全部案件","✔","✔","✔","僅自己","僅送審","✔"],
+  ["新增 / 編輯事件","✔","—","✔","僅自己","—","✔"],
+  ["案件審核","✔","—","—","—","—","✔"],
+  ["晤談 / 輔導紀錄","✔","✔","✔","—","—","✔"],
+  ["程序檢核","✔","✔","✔","—","—","✔"],
+  ["教評資料彙整","✔","✔","✔","—","✔","✔"],
+  ["匯出 / 列印","✔","✔","✔","—","—","✔"],
+  ["系統設定","—","—","—","—","—","✔"]
+];
+
+const SEVERITY_BADGE = {"輕微":"b-gray","中度":"b-blue","重大":"b-amber","緊急":"b-red"};
+const STATUS_BADGE   = {"草稿":"b-gray","待審核":"b-amber","追蹤中":"b-amber","已結案":"b-green","送教評":"b-red"};
+
+const CHECKLIST_ITEMS = [
+  {k:"fact",   t:"是否有明確的客觀事件事實", d:"以可查證之人事時地物描述，非主觀評論"},
+  {k:"meta",   t:"是否載明日期、地點、涉及人員"},
+  {k:"evidence",t:"是否檢附或說明佐證資料", d:"如書面、影像、第三人陳述等"},
+  {k:"notify", t:"是否已通知相關主管"},
+  {k:"talk",   t:"是否已進行行政晤談"},
+  {k:"observe",t:"是否已有觀課或巡堂紀錄"},
+  {k:"plan",   t:"是否已訂定輔導改善計畫"},
+  {k:"followup",t:"是否有追蹤結果"},
+  {k:"triage", t:"是否完成案件分流"},
+  {k:"privacy",t:"是否注意保密與個資保護"},
+  {k:"procedure",t:"是否確認適用之法定程序", d:"如校事會議、考核、教評會等"}
+];
+
+/* =========================================================
+   資料存取
+========================================================= */
+const load = (k,def)=>{ try{return JSON.parse(localStorage.getItem(k))??def}catch(e){return def} };
+const save = (k,v)=> localStorage.setItem(k,JSON.stringify(v));
+let DB = { teachers:[], events:[], counsel:[], audit:[], checklist:{} };
+let SESSION = null;
+let EDIT_CTX=null, CUR_EVENT_ID=null, CUR_COUNSEL_ID=null, CUR_LB_ID=null, CUR_LB_URL=null;
+
+function reloadDB(){
+  DB.teachers = load(LS.teachers,[]);
+  DB.events   = load(LS.events,[]);
+  DB.counsel  = load(LS.counsel,[]);
+  DB.audit    = load(LS.audit,[]);
+  DB.checklist= load(LS.checklist,{});
+}
+function persist(){ save(LS.teachers,DB.teachers);save(LS.events,DB.events);save(LS.counsel,DB.counsel);save(LS.audit,DB.audit);save(LS.checklist,DB.checklist); }
+
+/* =========================================================
+   工具
+========================================================= */
+const uid = p => p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const today = ()=> new Date().toISOString().slice(0,10);
+const nowStr = ()=> new Date().toLocaleString("zh-TW",{hour12:false});
+function teacherName(id){ const t=DB.teachers.find(x=>x.id===id); return t?t.name:"（未指定）"; }
+function daysUntil(dateStr){ if(!dateStr)return null; const d=new Date(dateStr); const n=new Date(today()); return Math.round((d-n)/86400000); }
+
+function toast(msg,err){ const el=document.getElementById("toast"); el.textContent=msg; el.className="toast show"+(err?" err":""); setTimeout(()=>el.className="toast",2400); }
+
+function audit(action,detail){
+  DB.audit.unshift({id:uid("a"),time:nowStr(),user:SESSION.name,role:ROLES[SESSION.role].name,action,detail});
+  save(LS.audit,DB.audit);
+}
+
+/* 自動產生事件編號 EV-YYYYMMDD-序號 */
+function nextEventNo(){
+  const ymd = today().replace(/-/g,"");
+  const todayCount = DB.events.filter(e=>e.no&&e.no.includes("EV-"+ymd)).length;
+  return "EV-"+ymd+"-"+String(todayCount+1).padStart(3,"0");
+}
+
+/* 權限判斷 */
+function can(perm){ return ROLES[SESSION.role].perms.includes(perm); }
+function canManageEvents(){ return can("manage_event")||can("manage_own_event"); }
+
+/* 依角色過濾可見事件 */
+function visibleEvents(){
+  const p = ROLES[SESSION.role].perms;
+  if(p.includes("all_events")||p.includes("view")) return DB.events;
+  if(p.includes("view_sent")) return DB.events.filter(e=>e.status==="送教評");
+  if(p.includes("view_own"))  return DB.events.filter(e=>e.recorderUser===SESSION.name);
+  return [];
+}
+
+/* =========================================================
+   附件儲存：縮圖/檔名存 localStorage，檔案本體存 IndexedDB
+   （影片/大圖不能放 localStorage，故用 IndexedDB 才存得下）
+========================================================= */
+const ATT_META="fir_attmeta";
+const attMetaAll = ()=> load(ATT_META,[]);
+const attByOwner = owner => attMetaAll().filter(m=>m.owner===owner);
+const attCount   = owner => attMetaAll().filter(m=>m.owner===owner).length;
+
+const IDB=(()=>{
+  let dbp=null;
+  function open(){
+    if(dbp) return dbp;
+    dbp=new Promise((res,rej)=>{
+      const r=indexedDB.open("fir_files",1);
+      r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains("blobs")) db.createObjectStore("blobs",{keyPath:"id"}); };
+      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+    });
+    return dbp;
+  }
+  const store=mode=>open().then(db=>db.transaction("blobs",mode).objectStore("blobs"));
+  return {
+    put:(id,blob)=>store("readwrite").then(s=>new Promise((res,rej)=>{const q=s.put({id,blob});q.onsuccess=()=>res();q.onerror=()=>rej(q.error);})),
+    get:(id)=>store("readonly").then(s=>new Promise((res,rej)=>{const q=s.get(id);q.onsuccess=()=>res(q.result?q.result.blob:null);q.onerror=()=>rej(q.error);})),
+    del:(id)=>store("readwrite").then(s=>new Promise((res)=>{const q=s.delete(id);q.onsuccess=()=>res();q.onerror=()=>res();})),
+    clear:()=>store("readwrite").then(s=>new Promise((res)=>{const q=s.clear();q.onsuccess=()=>res();q.onerror=()=>res();}))
+  };
+})();
+
+const fmtSize = b => b<1024?b+" B":(b<1048576?(b/1024).toFixed(0)+" KB":(b/1048576).toFixed(1)+" MB");
+
+function makeImgThumb(file){ return new Promise(res=>{
+  const img=new Image(), url=URL.createObjectURL(file);
+  img.onload=()=>{ try{ const max=160,sc=Math.min(max/img.width,max/img.height,1);
+    const c=document.createElement("canvas"); c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+    c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg",0.7));
+  }catch(e){ URL.revokeObjectURL(url); res(null);} };
+  img.onerror=()=>{URL.revokeObjectURL(url);res(null);}; img.src=url;
+}); }
+function makeVideoThumb(file){ return new Promise(res=>{
+  const v=document.createElement("video"); v.muted=true; v.preload="metadata";
+  const url=URL.createObjectURL(file); let done=false;
+  const fin=val=>{ if(done)return; done=true; URL.revokeObjectURL(url); res(val); };
+  v.onloadeddata=()=>{ try{ v.currentTime=Math.min(0.1,(v.duration||1)/3); }catch(e){ fin(null);} };
+  v.onseeked=()=>{ try{ const max=160,sc=Math.min(max/v.videoWidth,max/v.videoHeight,1);
+    const c=document.createElement("canvas"); c.width=Math.round(v.videoWidth*sc); c.height=Math.round(v.videoHeight*sc);
+    c.getContext("2d").drawImage(v,0,0,c.width,c.height); fin(c.toDataURL("image/jpeg",0.6));
+  }catch(e){ fin(null);} };
+  v.onerror=()=>fin(null); setTimeout(()=>fin(null),4000); v.src=url;
+}); }
+
+async function handleAttFiles(owner,fileList,containerId,editable){
+  const files=[...fileList]; if(!files.length) return;
+  const big=files.find(f=>f.size>200*1048576);
+  if(big){ toast("單一檔案請小於 200MB："+big.name,true); return; }
+  const useCloud=!!gasUrl();
+  const box=document.getElementById(containerId);
+  if(box) box.insertAdjacentHTML("afterbegin",`<div class="hint" id="attUploading">⏳ ${useCloud?"上傳至 Google Drive":"處理"}中，請稍候…</div>`);
+  const meta=attMetaAll();
+  let okCount=0;
+  for(const f of files){
+    if(useCloud){
+      try{
+        const b64=await fileToB64(f);
+        const r=await gasCall({action:"upload",owner,name:f.name,mimeType:f.type||"application/octet-stream",size:f.size,data:b64,by:SESSION.name});
+        if(r.ok && r.item){ meta.push(r.item); okCount++; }
+        else toast("雲端上傳失敗："+(r.error||f.name),true);
+      }catch(e){ toast("雲端上傳失敗："+f.name+"（"+e.message+"）",true); }
+    } else {
+      const id=uid("att"); let thumb=null;
+      try{ if(f.type.startsWith("image/")) thumb=await makeImgThumb(f);
+           else if(f.type.startsWith("video/")) thumb=await makeVideoThumb(f); }catch(e){}
+      try{ await IDB.put(id,f); }
+      catch(e){ toast("儲存失敗，可能瀏覽器空間不足",true); continue; }
+      meta.push({id,owner,name:f.name,type:f.type,size:f.size,thumb,by:SESSION.name,at:nowStr(),store:"local"});
+      okCount++;
+    }
+  }
+  save(ATT_META,meta);
+  if(okCount){ audit("上傳附件",owner+"（"+okCount+" 檔，"+(useCloud?"雲端 Drive":"本機")+"）"); toast("已上傳 "+okCount+" 個附件"); }
+  mountAtt(containerId,owner,editable);
+}
+
+function mountAtt(containerId,owner,editable){
+  const box=document.getElementById(containerId); if(!box) return;
+  const list=attByOwner(owner);
+  let h="";
+  if(editable){
+    h+=`<div class="att-actions">
+      <label class="btn sm">📷 拍照 / 相片・影片<input type="file" accept="image/*,video/*" capture multiple style="display:none" onchange="handleAttFiles('${owner}',this.files,'${containerId}',true);this.value=''"></label>
+      <label class="btn sm">🖼️ 從相簿 / 檔案選取<input type="file" accept="image/*,video/*" multiple style="display:none" onchange="handleAttFiles('${owner}',this.files,'${containerId}',true);this.value=''"></label>
+      <label class="btn sm">📎 其他檔案<input type="file" multiple style="display:none" onchange="handleAttFiles('${owner}',this.files,'${containerId}',true);this.value=''"></label>
+    </div>`;
+  }
+  h+=`<div class="att-grid">`;
+  if(!list.length) h+=`<div class="hint" style="grid-column:1/-1">尚無附件</div>`;
+  list.forEach(a=>{
+    const isImg=(a.type||"").startsWith("image/"), isVid=(a.type||"").startsWith("video/");
+    const thumb=a.thumb?`<img src="${a.thumb}" alt="">`:(isVid?'<div class="att-ic">🎬</div>':(isImg?'<div class="att-ic">🖼️</div>':'<div class="att-ic">📄</div>'));
+    h+=`<div class="att-card">
+      <div class="att-thumb" onclick="openAtt('${a.id}')">${thumb}${isVid?'<span class="att-play">▶</span>':''}</div>
+      <div class="att-name" title="${esc(a.name)}">${esc(a.name)}</div>
+      <div class="att-meta">${fmtSize(a.size)}・${esc((a.at||'').slice(0,16))}</div>
+      <div class="att-btns">
+        <button class="btn sm" onclick="openAtt('${a.id}')">調閱</button>
+        <button class="btn sm" onclick="dlAtt('${a.id}')">下載</button>
+        ${editable?`<button class="btn sm danger" onclick="delAtt('${a.id}','${containerId}','${owner}',true)">刪</button>`:''}
+      </div></div>`;
+  });
+  h+=`</div>`;
+  box.innerHTML=h;
+}
+
+async function openAtt(id){
+  const a=attMetaAll().find(m=>m.id===id); if(!a)return;
+  const body=document.getElementById("lbBody");
+  const isImg=(a.type||"").startsWith("image/"), isVid=(a.type||"").startsWith("video/");
+  document.getElementById("lbName").textContent=a.name; CUR_LB_ID=id;
+  if(a.store==="cloud"){
+    if(isImg) body.innerHTML=`<img src="https://drive.google.com/thumbnail?id=${a.fileId}&sz=w1600">`;
+    else if(isVid) body.innerHTML=`<iframe src="https://drive.google.com/file/d/${a.fileId}/preview" allow="autoplay" style="width:90vw;height:80vh;border:0;border-radius:8px;background:#000"></iframe>`;
+    else body.innerHTML=`<div style="color:#fff;text-align:center;padding:40px">此格式無法線上預覽<br><b>${esc(a.name)}</b><br>請點上方「下載」開啟。</div>`;
+    document.getElementById("lightbox").classList.add("open"); audit("調閱附件",a.name); return;
+  }
+  let blob; try{ blob=await IDB.get(id);}catch(e){}
+  if(!blob){ toast("找不到檔案內容",true); return; }
+  if(CUR_LB_URL) URL.revokeObjectURL(CUR_LB_URL);
+  const url=URL.createObjectURL(blob); CUR_LB_URL=url;
+  if(isImg) body.innerHTML=`<img src="${url}">`;
+  else if(isVid) body.innerHTML=`<video src="${url}" controls autoplay playsinline></video>`;
+  else body.innerHTML=`<div style="color:#fff;text-align:center;padding:40px">此格式無法線上預覽<br><b>${esc(a.name)}</b><br>請點上方「下載」開啟。</div>`;
+  document.getElementById("lightbox").classList.add("open");
+  audit("調閱附件",a.name);
+}
+function closeLb(){
+  document.getElementById("lightbox").classList.remove("open");
+  document.getElementById("lbBody").innerHTML="";
+  if(CUR_LB_URL){URL.revokeObjectURL(CUR_LB_URL);CUR_LB_URL=null;} CUR_LB_ID=null;
+}
+async function dlAtt(id){
+  const a=attMetaAll().find(m=>m.id===id); if(!a)return;
+  if(a.store==="cloud"){ window.open("https://drive.google.com/uc?export=download&id="+a.fileId,"_blank"); audit("下載附件",a.name); return; }
+  let blob; try{ blob=await IDB.get(id);}catch(e){}
+  if(!blob){ toast("找不到檔案內容",true); return; }
+  const url=URL.createObjectURL(blob); const x=document.createElement("a"); x.href=url; x.download=a.name; x.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1500); audit("下載附件",a.name);
+}
+function dlCurrentLb(){ if(CUR_LB_ID) dlAtt(CUR_LB_ID); }
+function delAtt(id,containerId,owner,editable){
+  if(!confirm("確定刪除此附件？此操作無法復原，並會留下稽核紀錄。")) return;
+  (async()=>{
+    const a=attMetaAll().find(m=>m.id===id);
+    if(a && a.store==="cloud"){ try{ const r=await gasCall({action:"delete",id}); if(!r.ok){ toast("雲端刪除失敗："+(r.error||""),true); return; } }catch(e){ toast("雲端刪除失敗："+e.message,true); return; } }
+    else { try{ await IDB.del(id);}catch(e){} }
+    save(ATT_META, attMetaAll().filter(m=>m.id!==id));
+    audit("刪除附件",a?a.name:id);
+    mountAtt(containerId,owner,editable);
+    toast("附件已刪除");
+  })();
+}
+function attDelByOwner(owner){
+  const all=attMetaAll(); const mine=all.filter(m=>m.owner===owner);
+  if(!mine.length) return;
+  save(ATT_META, all.filter(m=>m.owner!==owner));
+  mine.forEach(m=>{ if(m.store==="cloud") gasCall({action:"delete",id:m.id}).catch(()=>{}); else IDB.del(m.id).catch(()=>{}); });
+}
+function updateAttachmentCounts(){
+  document.querySelectorAll(".att-count").forEach(s=>{ const n=attCount(s.dataset.owner); s.innerHTML=n?`📎${n}`:""; });
+}
+
+/* ====== Google Drive 雲端附件（透過 GAS 後端）====== */
+const GAS_KEY="fir_gas_url";
+const gasUrl=()=>load(GAS_KEY,"");
+async function gasCall(payload){
+  const r=await fetch(gasUrl(),{method:"POST",body:JSON.stringify(payload)});
+  const t=await r.text();
+  try{ return JSON.parse(t); }catch(e){ throw new Error("回應非 JSON（請確認部署為「所有人」可存取）"); }
+}
+function fileToB64(f){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]); r.onerror=()=>rej(r.error); r.readAsDataURL(f); }); }
+function saveGasUrl(){
+  const u=val("gasUrlInput");
+  if(u && !/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){ if(!confirm("網址看起來不像 GAS 的 /exec 結尾，仍要儲存嗎？")) return; }
+  save(GAS_KEY,u); audit("設定雲端附件",u?"啟用 Google Drive":"關閉，改回本機");
+  if(u){ toast("已儲存，開始同步…"); syncFromCloud(true); }
+  else { toast("已改回本機儲存"); document.getElementById("gasStatus").textContent="目前為本機儲存模式（附件存於此瀏覽器）。"; }
+}
+function clearGasUrl(){ save(GAS_KEY,""); const i=document.getElementById("gasUrlInput"); if(i)i.value=""; document.getElementById("gasStatus").textContent="已改回本機儲存模式。"; toast("已改回本機儲存"); }
+async function testGas(){
+  if(!gasUrl()&&!val("gasUrlInput")){ toast("請先填入網址",true); return; }
+  if(val("gasUrlInput")) save(GAS_KEY,val("gasUrlInput"));
+  const st=document.getElementById("gasStatus"); st.textContent="測試連線中…";
+  try{ const r=await gasCall({action:"listAll"}); st.textContent=r.ok?("✔ 連線成功，雲端目前有 "+(r.items||[]).length+" 筆附件。"):("✗ 後端回應錯誤："+(r.error||"")); toast(r.ok?"連線成功":"連線異常",!r.ok); }
+  catch(e){ st.textContent="✗ 連線失敗："+e.message; toast("連線失敗",true); }
+}
+async function syncFromCloud(notify){
+  if(!gasUrl()) return;
+  try{
+    const r=await gasCall({action:"listAll"});
+    if(!r.ok) throw new Error(r.error||"未知錯誤");
+    const localOnly=attMetaAll().filter(m=>m.store!=="cloud");
+    save(ATT_META, localOnly.concat(r.items||[]));
+    updateAttachmentCounts();
+    const st=document.getElementById("gasStatus"); if(st) st.textContent="✔ 已同步，雲端共 "+(r.items||[]).length+" 筆附件。";
+    if(notify) toast("已從雲端同步附件清單");
+  }catch(e){ const st=document.getElementById("gasStatus"); if(st) st.textContent="✗ 同步失敗："+e.message; if(notify) toast("同步失敗："+e.message,true); }
+}
+
+/* =========================================================
+   登入 / 登出
+========================================================= */
+function doLogin(){
+  const role=document.getElementById("loginRole").value;
+  const name=document.getElementById("loginName").value.trim();
+  if(!name){ toast("請輸入姓名",true); return; }
+  SESSION={role,name,loginTime:nowStr()};
+  save(LS.session,SESSION);
+  startApp();
+  audit("登入系統","身分："+ROLES[role].name);
+}
+function doLogout(){
+  if(SESSION) audit("登出系統","");
+  localStorage.removeItem(LS.session);
+  location.reload();
+}
+function startApp(){
+  reloadDB();
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("app").style.display="block";
+  document.getElementById("barName").textContent=SESSION.name;
+  document.getElementById("barRole").textContent=ROLES[SESSION.role].name;
+  applyRoleUI();
+  initSelects();
+  nav("dashboard");
+  if(gasUrl()) syncFromCloud(false);
+}
+
+/* 依角色隱藏 / 停用功能 */
+function applyRoleUI(){
+  const r=SESSION.role;
+  const showPage = {
+    teachers: can("view")||can("all_events"),
+    events: true,
+    triage: can("manage_event")||can("all_events"),
+    counsel: can("manage_counsel"),
+    eval: can("eval"),
+    checklist: can("checklist"),
+    export: can("export"),
+    audit: can("view")||r==="admin",
+    settings: can("settings")
+  };
+  document.querySelectorAll(".nav-item").forEach(el=>{
+    const pg=el.dataset.page;
+    if(pg in showPage && !showPage[pg]) el.classList.add("disabled"); else el.classList.remove("disabled");
+  });
+  // 新增/編輯按鈕
+  document.getElementById("btnAddEvent").style.display = canManageEvents()?"":"none";
+  document.getElementById("btnAddTeacher").style.display = can("manage_event")||r==="admin"?"":"none";
+  document.getElementById("btnAddCounsel").style.display = can("manage_counsel")?"":"none";
+}
+
+/* =========================================================
+   導覽
+========================================================= */
+function nav(page){
+  const navEl=document.querySelector('.nav-item[data-page="'+page+'"]');
+  if(navEl&&navEl.classList.contains("disabled")){ toast("您的權限無法存取此功能",true); return; }
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  const target=document.getElementById("page-"+page);
+  if(target) target.classList.add("active");
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.page===page));
+  document.getElementById("sidebar").classList.remove("open");
+  const fn={dashboard:renderDashboard,teachers:renderTeachers,events:renderEvents,timeline:renderTimeline,
+    triage:renderTriagePage,counsel:renderCounsel,eval:renderEvalPage,checklist:renderChecklistPage,
+    audit:renderAudit,settings:renderSettings,export:()=>{}}[page];
+  if(fn) fn();
+}
+function toggleSidebar(){ document.getElementById("sidebar").classList.toggle("open"); }
+
+/* 初始化下拉選單 */
+function initSelects(){
+  const teacherOpts = '<option value="">全部教師</option>'+DB.teachers.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+  ["evfTeacher","cfTeacher","tlTeacher"].forEach(id=>{ const e=document.getElementById(id); if(e)e.innerHTML=teacherOpts; });
+  document.getElementById("evalTeacher").innerHTML='<option value="">— 選擇教師 —</option>'+DB.teachers.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+  document.getElementById("evfType").innerHTML='<option value="">全部類型</option>'+EVENT_TYPES.map(t=>`<option>${t}</option>`).join("");
+  document.getElementById("evfSeverity").innerHTML='<option value="">全部程度</option>'+SEVERITIES.map(t=>`<option>${t}</option>`).join("");
+  document.getElementById("evfStatus").innerHTML='<option value="">全部狀態</option>'+STATUSES.map(t=>`<option>${t}</option>`).join("");
+  document.getElementById("cfResult").innerHTML='<option value="">全部結果</option>'+COUNSEL_RESULTS.map(t=>`<option>${t}</option>`).join("");
+  document.getElementById("triageTypeSim").innerHTML=EVENT_TYPES.map(t=>`<option>${t}</option>`).join("");
+  document.getElementById("triageSevSim").innerHTML=SEVERITIES.map(t=>`<option>${t}</option>`).join("");
+}
+
+/* =========================================================
+   儀表板
+========================================================= */
+function renderDashboard(){
+  const ev=visibleEvents();
+  const ym=today().slice(0,7);
+  const thisMonth=ev.filter(e=>(e.date||"").slice(0,7)===ym).length;
+  const pending=ev.filter(e=>["草稿","待審核"].includes(e.status)).length;
+  const tracking=ev.filter(e=>e.status==="追蹤中").length;
+  const dueSoon=ev.filter(e=>{const d=daysUntil(e.followDate);return e.followDate&&e.status!=="已結案"&&d!==null&&d<=7&&d>=0;}).length;
+  const highRisk=ev.filter(e=>["重大","緊急"].includes(e.severity)&&e.status!=="已結案").length;
+
+  const stats=[
+    {label:"本月新增事件",num:thisMonth,cls:"blue",foot:ym},
+    {label:"待處理事件",num:pending,cls:"amber",foot:"草稿 / 待審核"},
+    {label:"輔導追蹤中案件",num:tracking,cls:"blue",foot:"狀態為追蹤中"},
+    {label:"即將到期追蹤",num:dueSoon,cls:"amber",foot:"7 日內到期"},
+    {label:"高風險案件",num:highRisk,cls:"red",foot:"重大 / 緊急且未結案"}
+  ];
+  document.getElementById("statGrid").innerHTML=stats.map(s=>`
+    <div class="stat ${s.cls}"><div class="label">${s.label}</div><div class="num">${s.num}</div><div class="foot">${s.foot}</div></div>`).join("");
+
+  // 類型統計圖
+  const counts=EVENT_TYPES.map(t=>({t,n:ev.filter(e=>e.type===t).length}));
+  const max=Math.max(1,...counts.map(c=>c.n));
+  document.getElementById("typeChart").innerHTML=counts.map(c=>`
+    <div class="bar-row"><div class="blabel">${c.t}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${c.n/max*100}%">${c.n||""}</div></div>
+      <div class="bval">${c.n}</div></div>`).join("");
+
+  // 提醒清單
+  const alerts=[];
+  ev.filter(e=>["重大","緊急"].includes(e.severity)&&e.status!=="已結案").forEach(e=>
+    alerts.push({cls:"b-red",icon:"🔴",txt:`${esc(teacherName(e.teacherId))}｜${esc(e.type)}（${e.severity}）`,sub:e.no}));
+  ev.filter(e=>{const d=daysUntil(e.followDate);return e.followDate&&e.status!=="已結案"&&d!==null&&d<=7;}).forEach(e=>{
+    const d=daysUntil(e.followDate);
+    alerts.push({cls:d<0?"b-red":"b-amber",icon:d<0?"⚠":"🟡",txt:`${esc(teacherName(e.teacherId))} 追蹤${d<0?"已逾期 "+(-d):"剩 "+d} 天`,sub:"到期日 "+e.followDate});
+  });
+  const box=document.getElementById("alertList");
+  box.innerHTML = alerts.length? alerts.slice(0,12).map(a=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line)">
+      <span>${a.icon}</span><div style="flex:1"><div style="font-size:13.5px">${a.txt}</div><div class="hint">${esc(a.sub)}</div></div>
+    </div>`).join("") : '<div class="empty">目前無高風險或即將到期案件 ✔</div>';
+}
+
+/* =========================================================
+   教師管理
+========================================================= */
+function renderTeachers(){
+  const kw=(document.getElementById("teacherSearch").value||"").toLowerCase();
+  const list=DB.teachers.filter(t=>!kw||[t.name,t.subject,t.title,t.classOf].join(" ").toLowerCase().includes(kw));
+  const canEdit=can("manage_event")||SESSION.role==="admin";
+  let h=`<thead><tr><th>姓名</th><th>任教科目</th><th>年資</th><th>職務</th><th>導師班級</th><th>聯絡方式</th><th class="wrap">備註</th><th>事件數</th>${canEdit?"<th>操作</th>":""}</tr></thead><tbody>`;
+  if(!list.length) h+=`<tr><td colspan="9"><div class="empty">尚無教師資料</div></td></tr>`;
+  list.forEach(t=>{
+    const evCount=DB.events.filter(e=>e.teacherId===t.id).length;
+    h+=`<tr>
+      <td><b>${esc(t.name)}</b></td><td>${esc(t.subject)}</td><td>${esc(t.years)}</td>
+      <td>${esc(t.title)}</td><td>${esc(t.classOf)}</td><td>${esc(t.contact)}</td>
+      <td class="wrap">${esc(t.note)}</td>
+      <td>${evCount?`<span class="badge b-blue">${evCount}</span>`:"0"}</td>
+      ${canEdit?`<td>
+        <button class="btn sm" onclick="openTeacherModal('${t.id}')">編輯</button>
+        <button class="btn sm danger" onclick="deleteTeacher('${t.id}')">刪除</button></td>`:""}
+    </tr>`;
+  });
+  h+="</tbody>";
+  document.getElementById("teacherTable").innerHTML=h;
+}
+
+function openTeacherModal(id){
+  EDIT_CTX=null;
+  const t = id? DB.teachers.find(x=>x.id===id) : {};
+  setModal(id?"編輯教師資料":"新增教師", `
+    <div class="form-grid">
+      <div><label>教師姓名 <span class="req">*</span></label><input id="t_name" value="${esc(t.name||'')}"></div>
+      <div><label>任教科目</label><input id="t_subject" value="${esc(t.subject||'')}"></div>
+      <div><label>任職年資</label><input id="t_years" value="${esc(t.years||'')}" placeholder="例：12 年"></div>
+      <div><label>職務</label><input id="t_title" value="${esc(t.title||'')}" placeholder="例：專任教師 / 組長"></div>
+      <div><label>導師班級</label><input id="t_class" value="${esc(t.classOf||'')}" placeholder="例：三年五班 / 無"></div>
+      <div><label>聯絡方式</label><input id="t_contact" value="${esc(t.contact||'')}"></div>
+      <div class="full"><label>備註</label><textarea id="t_note">${esc(t.note||'')}</textarea></div>
+    </div>`,
+    [{txt:"取消",cls:"btn",fn:closeModal},{txt:"儲存",cls:"btn primary",fn:()=>saveTeacher(id)}]);
+}
+function saveTeacher(id){
+  const name=val("t_name"); if(!name){toast("請輸入教師姓名",true);return;}
+  const data={name,subject:val("t_subject"),years:val("t_years"),title:val("t_title"),
+    classOf:val("t_class"),contact:val("t_contact"),note:val("t_note")};
+  if(id){ const t=DB.teachers.find(x=>x.id===id); Object.assign(t,data,{updatedBy:SESSION.name,updatedAt:nowStr()});
+    audit("編輯教師",name);
+  } else { data.id=uid("t"); data.createdBy=SESSION.name; data.createdAt=nowStr(); DB.teachers.push(data); audit("新增教師",name); }
+  persist(); initSelects(); renderTeachers(); closeModal(); toast("教師資料已儲存");
+}
+function deleteTeacher(id){
+  const t=DB.teachers.find(x=>x.id===id);
+  const evCount=DB.events.filter(e=>e.teacherId===id).length;
+  confirmModal(`確定刪除教師「${esc(t.name)}」？`+(evCount?`<div class="hint warn">注意：此教師仍有 ${evCount} 筆事件紀錄，刪除教師不會刪除事件，但事件將顯示為未指定。</div>`:""),
+    ()=>{ DB.teachers=DB.teachers.filter(x=>x.id!==id); persist(); audit("刪除教師",t.name); initSelects(); renderTeachers(); toast("已刪除"); });
+}
+
+/* =========================================================
+   事件管理
+========================================================= */
+function getEventFilters(){
+  return {kw:(val("evSearch")||"").toLowerCase(),teacher:val("evfTeacher"),type:val("evfType"),
+    sev:val("evfSeverity"),status:val("evfStatus"),from:val("evfFrom"),to:val("evfTo")};
+}
+function clearEventFilters(){
+  ["evSearch","evfTeacher","evfType","evfSeverity","evfStatus","evfFrom","evfTo"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
+  renderEvents();
+}
+function filteredEvents(){
+  const f=getEventFilters();
+  return visibleEvents().filter(e=>{
+    if(f.teacher&&e.teacherId!==f.teacher) return false;
+    if(f.type&&e.type!==f.type) return false;
+    if(f.sev&&e.severity!==f.sev) return false;
+    if(f.status&&e.status!==f.status) return false;
+    if(f.from&&(e.date||"")<f.from) return false;
+    if(f.to&&(e.date||"")>f.to) return false;
+    if(f.kw){ const blob=[e.no,e.fact,e.location,teacherName(e.teacherId),e.type].join(" ").toLowerCase(); if(!blob.includes(f.kw))return false; }
+    return true;
+  }).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+}
+function renderEvents(){
+  const list=filteredEvents();
+  const canEdit=canManageEvents();
+  let h=`<thead><tr><th>編號</th><th>日期</th><th>涉及教師</th><th>類型</th><th>程度</th><th class="wrap">具體事實（摘要）</th><th>狀態</th><th>追蹤日</th><th>操作</th></tr></thead><tbody>`;
+  if(!list.length) h+=`<tr><td colspan="9"><div class="empty">查無符合條件的事件</div></td></tr>`;
+  list.forEach(e=>{
+    const d=daysUntil(e.followDate);
+    const dueTag = e.followDate&&e.status!=="已結案"&&d!==null&&d<=7 ? `<br><span class="badge ${d<0?'b-red':'b-amber'}">${d<0?'逾期'+(-d)+'天':'剩'+d+'天'}</span>`:"";
+    h+=`<tr>
+      <td><b>${esc(e.no)}</b><span class="att-count" data-owner="event:${e.id}"></span>${e.secret?'<br><span class="tag-secret">機密</span>':''}</td>
+      <td>${esc(e.date)}</td>
+      <td>${esc(teacherName(e.teacherId))}</td>
+      <td><span class="badge b-gray">${esc(e.type)}</span></td>
+      <td><span class="badge ${SEVERITY_BADGE[e.severity]||'b-gray'}">${esc(e.severity)}</span></td>
+      <td class="wrap">${esc((e.fact||"").slice(0,60))}${(e.fact||"").length>60?"…":""}</td>
+      <td><span class="badge ${STATUS_BADGE[e.status]||'b-gray'}">${esc(e.status)}</span></td>
+      <td>${esc(e.followDate||"—")}${dueTag}</td>
+      <td>
+        <button class="btn sm" onclick="viewEvent('${e.id}')">檢視</button>
+        ${canEdit?`<button class="btn sm" onclick="openEventModal('${e.id}')">編輯</button>`:""}
+        ${can("manage_event")?`<button class="btn sm danger" onclick="deleteEvent('${e.id}')">刪除</button>`:""}
+      </td></tr>`;
+  });
+  h+="</tbody>";
+  document.getElementById("eventTable").innerHTML=h;
+  updateAttachmentCounts();
+}
+
+function openEventModal(id){
+  const e = id? DB.events.find(x=>x.id===id) : {};
+  const isNew=!id; const eid=id||uid("e"); CUR_EVENT_ID=eid;
+  EDIT_CTX={owner:"event:"+eid,isNew,saved:false};
+  const teacherOpts=DB.teachers.map(t=>`<option value="${t.id}" ${e.teacherId===t.id?"selected":""}>${esc(t.name)}</option>`).join("");
+  const impactChecks=IMPACTS.map(i=>`<label><input type="checkbox" class="imp" value="${i}" ${(e.impact||[]).includes(i)?"checked":""}>${i}</label>`).join("");
+  setModal(id?"編輯事件":"新增事件", `
+    <div class="alert info" style="margin-top:0">請以「客觀事實」描述（人、事、時、地、物及可查證之情形），避免僅填寫主觀評論。</div>
+    <div class="form-grid">
+      <div><label>事件編號</label><input id="e_no" value="${esc(e.no||nextEventNo())}" readonly style="background:#f4f6f9"></div>
+      <div><label>案件狀態</label><select id="e_status">${STATUSES.map(s=>`<option ${e.status===s?"selected":""}>${s}</option>`).join("")}</select></div>
+      <div><label>事件日期 <span class="req">*</span></label><input type="date" id="e_date" value="${esc(e.date||today())}"></div>
+      <div><label>發生時間</label><input id="e_time" value="${esc(e.time||'')}" placeholder="例：第三節 / 10:30"></div>
+      <div><label>發生地點</label><input id="e_loc" value="${esc(e.location||'')}"></div>
+      <div><label>涉及教師 <span class="req">*</span></label><select id="e_teacher"><option value="">— 請選擇 —</option>${teacherOpts}</select></div>
+      <div><label>紀錄人</label><input id="e_recorder" value="${esc(e.recorder||SESSION.name)}"></div>
+      <div><label>事件類型 <span class="req">*</span></label><select id="e_type">${EVENT_TYPES.map(t=>`<option ${e.type===t?"selected":""}>${t}</option>`).join("")}</select></div>
+      <div><label>嚴重程度 <span class="req">*</span></label><select id="e_sev" onchange="">${SEVERITIES.map(s=>`<option ${e.severity===s?"selected":""}>${s}</option>`).join("")}</select></div>
+      <div><label>後續追蹤日期</label><input type="date" id="e_follow" value="${esc(e.followDate||'')}"></div>
+      <div class="full"><label>具體事實描述 <span class="req">*</span></label><textarea id="e_fact" placeholder="客觀描述：何人、於何時、在何地、做了什麼、可查證之情形。">${esc(e.fact||'')}</textarea></div>
+      <div class="full"><label>影響對象</label><div class="checkbox-row" id="e_impact">${impactChecks}</div></div>
+      <div class="full"><label>佐證資料說明</label><textarea id="e_evidence" placeholder="如：監視器畫面、書面通知、第三人陳述、學生作業等（請勿填入不必要之個人敏感資料）。">${esc(e.evidence||'')}</textarea></div>
+      <div class="full"><label>佐證附件（照片 JPG / 影片 / 檔案，手機可直接拍照上傳）</label>
+        <div id="attArea"></div>
+        <div class="hint">附件依「系統設定」存於本機瀏覽器或你的 Google Drive，日後點「調閱」即可隨時叫出查看。請依保密原則保管，勿外流。</div>
+      </div>
+      <div class="full"><label>初步處理方式</label><textarea id="e_handle">${esc(e.handle||'')}</textarea></div>
+      <div class="full"><label>備註</label><textarea id="e_note">${esc(e.note||'')}</textarea></div>
+      <div class="full"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="e_secret" ${e.secret?"checked":""} style="width:auto"> 標示為敏感 / 機密案件（如涉性平、兒少保護）</label></div>
+    </div>
+    <div id="e_suggest"></div>`,
+    [{txt:"取消",cls:"btn",fn:closeModal},{txt:"儲存事件",cls:"btn primary",fn:()=>saveEvent(id)}]);
+  // 即時分流建議
+  ["e_type","e_sev"].forEach(i=>document.getElementById(i).addEventListener("change",updateModalSuggest));
+  updateModalSuggest();
+  mountAtt("attArea","event:"+eid,canManageEvents());
+}
+function updateModalSuggest(){
+  const box=document.getElementById("e_suggest"); if(!box)return;
+  const s=triageSuggest(val("e_type"),val("e_sev"));
+  box.innerHTML=`<div class="suggest-box"><h4>🔀 系統行政建議（僅供參考）</h4><ul>${s.map(x=>`<li>${x}</li>`).join("")}</ul>
+    <div class="disclaimer">※ 本建議不具法律效力，不得直接判定教師不適任，正式處理應依法定程序辦理。</div></div>`;
+}
+function saveEvent(id){
+  const teacherId=val("e_teacher"), date=val("e_date"), fact=val("e_fact").trim();
+  if(!teacherId){toast("請選擇涉及教師",true);return;}
+  if(!date){toast("請填寫事件日期",true);return;}
+  if(fact.length<10){toast("具體事實描述過短，請以客觀事實完整描述",true);return;}
+  const impact=[...document.querySelectorAll(".imp:checked")].map(c=>c.value);
+  const data={no:val("e_no"),date,time:val("e_time"),location:val("e_loc"),teacherId,
+    recorder:val("e_recorder"),type:val("e_type"),severity:val("e_sev"),fact,impact,
+    evidence:val("e_evidence"),handle:val("e_handle"),followDate:val("e_follow"),
+    status:val("e_status"),note:val("e_note"),secret:document.getElementById("e_secret").checked};
+  if(id){ const e=DB.events.find(x=>x.id===id);
+    e.history=e.history||[]; e.history.push({by:SESSION.name,at:nowStr(),note:"編輯事件"});
+    Object.assign(e,data); audit("編輯事件",data.no+"｜"+teacherName(teacherId));
+  } else {
+    data.id=CUR_EVENT_ID||uid("e"); data.recorderUser=SESSION.name; data.createdAt=nowStr();
+    data.history=[{by:SESSION.name,at:nowStr(),note:"建立事件"}];
+    DB.events.push(data); audit("新增事件",data.no+"｜"+teacherName(teacherId));
+  }
+  if(EDIT_CTX) EDIT_CTX.saved=true;
+  persist(); renderEvents(); closeModal(); toast("事件已儲存");
+}
+function deleteEvent(id){
+  const e=DB.events.find(x=>x.id===id);
+  confirmModal(`確定刪除事件「${esc(e.no)}」？此操作將留下稽核紀錄。`,
+    ()=>{ DB.events=DB.events.filter(x=>x.id!==id); attDelByOwner("event:"+id); persist(); audit("刪除事件",e.no); renderEvents(); toast("已刪除"); });
+}
+function viewEvent(id){
+  const e=DB.events.find(x=>x.id===id);
+  const rel=DB.counsel.filter(c=>c.eventId===id);
+  setModal("事件詳情　"+esc(e.no), `
+    ${e.secret?'<div class="alert warn">🔒 此為敏感 / 機密案件，請依保密原則處理，禁止外流。</div>':''}
+    <table style="border:1px solid var(--line);border-radius:8px">
+      <tr><th style="width:120px">涉及教師</th><td>${esc(teacherName(e.teacherId))}</td><th style="width:120px">紀錄人</th><td>${esc(e.recorder)}</td></tr>
+      <tr><th>事件日期</th><td>${esc(e.date)}</td><th>發生時間</th><td>${esc(e.time||"—")}</td></tr>
+      <tr><th>發生地點</th><td>${esc(e.location||"—")}</td><th>影響對象</th><td>${esc((e.impact||[]).join("、")||"—")}</td></tr>
+      <tr><th>事件類型</th><td><span class="badge b-gray">${esc(e.type)}</span></td><th>嚴重程度</th><td><span class="badge ${SEVERITY_BADGE[e.severity]}">${esc(e.severity)}</span></td></tr>
+      <tr><th>案件狀態</th><td><span class="badge ${STATUS_BADGE[e.status]}">${esc(e.status)}</span></td><th>追蹤日期</th><td>${esc(e.followDate||"—")}</td></tr>
+      <tr><th>具體事實</th><td colspan="3" class="wrap">${esc(e.fact)}</td></tr>
+      <tr><th>佐證資料</th><td colspan="3" class="wrap">${esc(e.evidence||"—")}</td></tr>
+      <tr><th>初步處理</th><td colspan="3" class="wrap">${esc(e.handle||"—")}</td></tr>
+      <tr><th>備註</th><td colspan="3" class="wrap">${esc(e.note||"—")}</td></tr>
+    </table>
+    <div class="suggest-box" style="margin-top:14px"><h4>🔀 案件分流建議</h4><ul>${triageSuggest(e.type,e.severity).map(x=>`<li>${x}</li>`).join("")}</ul></div>
+    <div class="section-title">📎 佐證附件（點縮圖或「調閱」即可查看照片 / 影片）</div>
+    <div id="viewAtt"></div>
+    <div class="section-title">相關晤談 / 輔導紀錄（${rel.length}）</div>
+    ${rel.length?rel.map(c=>`<div class="card card-pad" style="margin-bottom:8px"><b>${esc(c.date)}</b>｜晤談人：${esc(c.staff)}｜結果：<span class="badge ${c.result==='無改善'?'b-red':c.result==='有改善'?'b-green':'b-amber'}">${esc(c.result||'—')}</span><div class="hint">改善目標：${esc(c.goal||'—')}</div></div>`).join(""):'<div class="hint">尚無相關紀錄</div>'}
+    <div class="section-title">異動歷程</div>
+    <div class="hint">${(e.history||[]).map(h=>`${esc(h.at)}　${esc(h.by)}　${esc(h.note)}`).join("<br>")||"—"}</div>`,
+    [{txt:"關閉",cls:"btn",fn:closeModal}]);
+  mountAtt("viewAtt","event:"+id,canManageEvents());
+}
+
+/* =========================================================
+   時間軸
+========================================================= */
+function renderTimeline(){
+  const tid=val("tlTeacher");
+  let list=visibleEvents();
+  if(tid) list=list.filter(e=>e.teacherId===tid);
+  list=list.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const box=document.getElementById("timelineBox");
+  if(!list.length){ box.innerHTML='<div class="empty">無事件</div>'; return; }
+  box.innerHTML=list.map(e=>{
+    const cls=e.severity==="緊急"?"red":(e.severity==="重大"?"red":(e.severity==="中度"?"amber":""));
+    return `<div class="tl-item ${cls}">
+      <div class="tl-date">${esc(e.date)}　${esc(e.time||"")}</div>
+      <div class="tl-card">
+        <b>${esc(e.no)}</b>　<span class="badge b-gray">${esc(e.type)}</span>　<span class="badge ${SEVERITY_BADGE[e.severity]}">${esc(e.severity)}</span>　<span class="badge ${STATUS_BADGE[e.status]}">${esc(e.status)}</span>
+        <div style="margin-top:6px">涉及教師：<b>${esc(teacherName(e.teacherId))}</b></div>
+        <div class="wrap" style="margin-top:4px">${esc(e.fact)}</div>
+      </div></div>`;
+  }).join("");
+}
+
+/* =========================================================
+   案件分流
+========================================================= */
+function triageSuggest(type,severity){
+  const s=[];
+  // 嚴重程度基礎
+  if(severity==="輕微") s.push("一般行政提醒：由相關主管以口頭或書面方式提醒注意。");
+  if(severity==="中度"){ s.push("安排行政晤談，了解情形並記錄教師回應。"); s.push("視情形進行觀課 / 巡堂以蒐集客觀資料。"); }
+  if(severity==="重大"){ s.push("進行行政晤談並啟動輔導改善計畫。"); s.push("評估是否回歸教師成績考核程序辦理。"); s.push("建議召開校事會議審議事實認定與處理方向。"); }
+  if(severity==="緊急"){ s.push("立即由權責主管處置以保護學生與當事人安全。"); s.push("儘速啟動校事會議程序並通報權責單位。"); }
+  // 類型特定
+  if(type==="教學不力"){ s.push("安排觀課 / 巡堂並提供教學輔導資源。"); s.push("訂定教學改善計畫並定期追蹤。"); }
+  if(type==="輔導管教不當"){ s.push("檢視是否符合輔導管教辦法，必要時提供管教知能研習。"); }
+  if(type==="行政違失"){ s.push("釐清行政流程與權責，必要時回歸考核或行政懲處程序。"); }
+  if(type==="疑似不適任"){ s.push("依教師法相關規定，審慎完成事實調查與程序檢核後，彙整教評會資料。"); }
+  if(type==="性平或兒少保護"){ s.push("⚠ 應即依《性別平等教育法》/《兒少權益保障法》於法定時限內通報，轉由性平會 / 專責單位處理，本系統僅作行政留存。"); }
+  if(type==="其他"){ s.push("依個案性質判斷適用程序，必要時諮詢人事 / 法制單位。"); }
+  s.push("完成程序檢核表，確認程序正義與保密 / 個資保護。");
+  return s;
+}
+function renderTriagePage(){
+  const opts='<option value="">— 選擇現有事件 —</option>'+visibleEvents().sort((a,b)=>(b.date||"").localeCompare(a.date)).map(e=>`<option value="${e.id}">${esc(e.no)}｜${esc(teacherName(e.teacherId))}｜${esc(e.type)}</option>`).join("");
+  document.getElementById("triageEvent").innerHTML=opts;
+  renderTriageSim();
+}
+function renderTriage(){
+  const id=val("triageEvent");
+  if(!id){ document.getElementById("triageResult").innerHTML=""; renderTriageSim(); return; }
+  const e=DB.events.find(x=>x.id===id);
+  document.getElementById("triageResult").innerHTML=triageCard(e.type,e.severity,`${esc(e.no)}｜${esc(teacherName(e.teacherId))}`);
+}
+function renderTriageSim(){
+  if(val("triageEvent")) return;
+  document.getElementById("triageResult").innerHTML=triageCard(val("triageTypeSim"),val("triageSevSim"),"模擬情境");
+}
+function triageCard(type,sev,head){
+  return `<div class="card card-pad">
+    <div style="margin-bottom:8px">${esc(head)}｜<span class="badge b-gray">${esc(type)}</span> <span class="badge ${SEVERITY_BADGE[sev]}">${esc(sev)}</span></div>
+    <div class="suggest-box"><h4>🔀 系統行政建議</h4><ul>${triageSuggest(type,sev).map(x=>`<li>${x}</li>`).join("")}</ul>
+    <div class="disclaimer">※ 本系統僅提供「行政建議」，不得直接判定教師不適任。正式處理須依教師法及相關法令之法定程序辦理，並保障當事人陳述意見之權利。</div></div>
+  </div>`;
+}
+
+/* =========================================================
+   晤談 / 輔導改善
+========================================================= */
+function renderCounsel(){
+  const ft=val("cfTeacher"), fr=val("cfResult");
+  let list=DB.counsel.slice();
+  if(ft) list=list.filter(c=>{const e=DB.events.find(x=>x.id===c.eventId);return e&&e.teacherId===ft;});
+  if(fr) list=list.filter(c=>c.result===fr);
+  list.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const canEdit=can("manage_counsel");
+  let h=`<thead><tr><th>晤談日期</th><th>對應事件</th><th>涉及教師</th><th>晤談人員</th><th class="wrap">改善目標</th><th>下次追蹤</th><th>是否配合</th><th>改善結果</th><th>移送</th>${canEdit?"<th>操作</th>":""}</tr></thead><tbody>`;
+  if(!list.length) h+=`<tr><td colspan="10"><div class="empty">尚無晤談 / 輔導紀錄</div></td></tr>`;
+  list.forEach(c=>{
+    const e=DB.events.find(x=>x.id===c.eventId);
+    const d=daysUntil(c.nextDate);
+    const due=c.nextDate&&d!==null&&d<=7?`<br><span class="badge ${d<0?'b-red':'b-amber'}">${d<0?'逾期'+(-d):'剩'+d}天</span>`:"";
+    const rb=c.result==="無改善"?"b-red":c.result==="有改善"?"b-green":"b-amber";
+    h+=`<tr>
+      <td>${esc(c.date)}<span class="att-count" data-owner="counsel:${c.id}"></span></td><td>${e?esc(e.no):"—"}</td>
+      <td>${esc(e?teacherName(e.teacherId):"—")}</td><td>${esc(c.staff)}</td>
+      <td class="wrap">${esc((c.goal||"").slice(0,40))}</td>
+      <td>${esc(c.nextDate||"—")}${due}</td>
+      <td>${esc(c.cooperate||"—")}</td>
+      <td><span class="badge ${rb}">${esc(c.result||"—")}</span></td>
+      <td>${c.refer?'<span class="badge b-red">建議移送</span>':"—"}</td>
+      ${canEdit?`<td><button class="btn sm" onclick="openCounselModal('${c.id}')">編輯</button> <button class="btn sm" onclick="printCounsel('${c.id}')">報告</button> <button class="btn sm danger" onclick="deleteCounsel('${c.id}')">刪除</button></td>`:""}
+    </tr>`;
+  });
+  h+="</tbody>";
+  document.getElementById("counselTable").innerHTML=h;
+  updateAttachmentCounts();
+}
+function openCounselModal(id){
+  const c = id? DB.counsel.find(x=>x.id===id):{};
+  const isNew=!id; const cid=id||uid("c"); CUR_COUNSEL_ID=cid;
+  EDIT_CTX={owner:"counsel:"+cid,isNew,saved:false};
+  const evOpts=DB.events.map(e=>`<option value="${e.id}" ${c.eventId===e.id?"selected":""}>${esc(e.no)}｜${esc(teacherName(e.teacherId))}｜${esc(e.type)}</option>`).join("");
+  setModal(id?"編輯晤談 / 輔導紀錄":"新增晤談 / 輔導紀錄",`
+    <div class="form-grid">
+      <div class="full"><label>對應事件 <span class="req">*</span></label><select id="c_event"><option value="">— 請選擇 —</option>${evOpts}</select></div>
+      <div><label>晤談日期 <span class="req">*</span></label><input type="date" id="c_date" value="${esc(c.date||today())}"></div>
+      <div><label>晤談人員</label><input id="c_staff" value="${esc(c.staff||SESSION.name)}"></div>
+      <div class="full"><label>教師回應</label><textarea id="c_resp">${esc(c.resp||'')}</textarea></div>
+      <div class="full"><label>改善目標</label><textarea id="c_goal">${esc(c.goal||'')}</textarea></div>
+      <div class="full"><label>改善措施</label><textarea id="c_measure">${esc(c.measure||'')}</textarea></div>
+      <div><label>下次追蹤日期</label><input type="date" id="c_next" value="${esc(c.nextDate||'')}"></div>
+      <div><label>是否配合</label><select id="c_coop"><option value="">—</option><option ${c.cooperate==="是"?"selected":""}>是</option><option ${c.cooperate==="部分"?"selected":""}>部分</option><option ${c.cooperate==="否"?"selected":""}>否</option></select></div>
+      <div><label>改善結果</label><select id="c_result"><option value="">—</option>${COUNSEL_RESULTS.map(r=>`<option ${c.result===r?"selected":""}>${r}</option>`).join("")}</select></div>
+      <div><label>是否建議移送後續程序</label><select id="c_refer"><option value="">否</option><option value="1" ${c.refer?"selected":""}>是，建議移送</option></select></div>
+      <div class="full"><label>佐證附件（照片 JPG / 影片 / 檔案，手機可直接拍照上傳）</label>
+        <div id="cAttArea"></div></div>
+    </div>`,
+    [{txt:"取消",cls:"btn",fn:closeModal},{txt:"儲存",cls:"btn primary",fn:()=>saveCounsel(id)}]);
+  mountAtt("cAttArea","counsel:"+cid,can("manage_counsel"));
+}
+function saveCounsel(id){
+  const eventId=val("c_event"); if(!eventId){toast("請選擇對應事件",true);return;}
+  const data={eventId,date:val("c_date"),staff:val("c_staff"),resp:val("c_resp"),goal:val("c_goal"),
+    measure:val("c_measure"),nextDate:val("c_next"),cooperate:val("c_coop"),result:val("c_result"),refer:!!val("c_refer")};
+  if(id){ Object.assign(DB.counsel.find(x=>x.id===id),data,{updatedBy:SESSION.name,updatedAt:nowStr()}); audit("編輯輔導紀錄",data.date);}
+  else { data.id=CUR_COUNSEL_ID||uid("c"); data.createdBy=SESSION.name; data.createdAt=nowStr(); DB.counsel.push(data); audit("新增輔導紀錄",data.date);}
+  if(EDIT_CTX) EDIT_CTX.saved=true;
+  persist(); renderCounsel(); closeModal(); toast("輔導紀錄已儲存");
+}
+function deleteCounsel(id){
+  confirmModal("確定刪除此晤談 / 輔導紀錄？",()=>{ const c=DB.counsel.find(x=>x.id===id); DB.counsel=DB.counsel.filter(x=>x.id!==id); attDelByOwner("counsel:"+id); persist(); audit("刪除輔導紀錄",c.date); renderCounsel(); toast("已刪除"); });
+}
+
+/* =========================================================
+   教評會資料彙整
+========================================================= */
+function renderEvalPage(){ renderEval(); }
+function renderEval(){
+  const tid=val("evalTeacher");
+  const box=document.getElementById("evalContent");
+  if(!tid){ box.innerHTML='<div class="card card-pad"><div class="empty">請於右上方選擇教師以彙整資料</div></div>'; return; }
+  box.innerHTML=buildEvalHTML(tid,false);
+}
+function buildEvalHTML(tid,forPrint){
+  const t=DB.teachers.find(x=>x.id===tid);
+  const evs=DB.events.filter(e=>e.teacherId===tid).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const counsels=DB.counsel.filter(c=>{const e=DB.events.find(x=>x.id===c.eventId);return e&&e.teacherId===tid;});
+  const typeStat=EVENT_TYPES.map(ty=>({ty,n:evs.filter(e=>e.type===ty).length})).filter(x=>x.n);
+  const sevStat=SEVERITIES.map(s=>({s,n:evs.filter(e=>e.severity===s).length})).filter(x=>x.n);
+  const evidences=evs.filter(e=>e.evidence).map(e=>({no:e.no,date:e.date,ev:e.evidence}));
+
+  return `
+  <div class="card card-pad" id="evalPack">
+    <h2 style="margin:0 0 4px">教評會資料彙整｜${esc(t?t.name:"")}</h2>
+    <div class="hint">產製時間：${nowStr()}　產製人：${esc(SESSION.name)}（${ROLES[SESSION.role].name}）</div>
+    <div class="alert warn" style="margin-top:10px">本資料含教師個人資料與案件內容，僅供教評會 / 權責程序使用，應依保密原則保管，禁止外流或作為其他用途。</div>
+
+    <div class="section-title">一、教師基本資料</div>
+    <table style="border:1px solid var(--line)">
+      <tr><th style="width:120px">姓名</th><td>${esc(t?.name)}</td><th style="width:120px">任教科目</th><td>${esc(t?.subject)}</td></tr>
+      <tr><th>任職年資</th><td>${esc(t?.years)}</td><th>職務</th><td>${esc(t?.title)}</td></tr>
+      <tr><th>導師班級</th><td>${esc(t?.classOf)}</td><th>聯絡方式</th><td>${esc(t?.contact)}</td></tr>
+    </table>
+
+    <div class="section-title">二、事件總表（共 ${evs.length} 件）</div>
+    <div class="table-wrap"><table style="border:1px solid var(--line)">
+      <thead><tr><th>編號</th><th>日期</th><th>類型</th><th>程度</th><th class="wrap">具體事實</th><th>狀態</th></tr></thead><tbody>
+      ${evs.length?evs.map(e=>`<tr><td>${esc(e.no)}</td><td>${esc(e.date)}</td><td>${esc(e.type)}</td><td>${esc(e.severity)}</td><td class="wrap">${esc(e.fact)}</td><td>${esc(e.status)}</td></tr>`).join(""):'<tr><td colspan="6"><div class="empty">無事件</div></td></tr>'}
+      </tbody></table></div>
+
+    <div class="section-title">三、事件時間軸</div>
+    <div class="timeline">${evs.length?evs.map(e=>`<div class="tl-item ${["重大","緊急"].includes(e.severity)?'red':(e.severity==='中度'?'amber':'')}"><div class="tl-date">${esc(e.date)}</div><div class="tl-card"><b>${esc(e.no)}</b>　${esc(e.type)}（${esc(e.severity)}）<div class="wrap">${esc(e.fact)}</div></div></div>`).join(""):'<div class="hint">無</div>'}</div>
+
+    <div class="section-title">四、事件分類統計</div>
+    <div style="display:flex;gap:30px;flex-wrap:wrap">
+      <div><b>依類型</b><ul>${typeStat.map(x=>`<li>${x.ty}：${x.n} 件</li>`).join("")||"<li>—</li>"}</ul></div>
+      <div><b>依嚴重程度</b><ul>${sevStat.map(x=>`<li>${x.s}：${x.n} 件</li>`).join("")||"<li>—</li>"}</ul></div>
+    </div>
+
+    <div class="section-title">五、佐證資料清單</div>
+    <table style="border:1px solid var(--line)"><thead><tr><th>事件編號</th><th>日期</th><th class="wrap">佐證資料說明</th></tr></thead><tbody>
+      ${evidences.length?evidences.map(x=>`<tr><td>${esc(x.no)}</td><td>${esc(x.date)}</td><td class="wrap">${esc(x.ev)}</td></tr>`).join(""):'<tr><td colspan="3"><div class="empty">無佐證資料</div></td></tr>'}
+    </tbody></table>
+
+    <div class="section-title">六、行政晤談與輔導改善紀錄（共 ${counsels.length} 筆）</div>
+    <table style="border:1px solid var(--line)"><thead><tr><th>日期</th><th>晤談人</th><th class="wrap">改善目標</th><th>是否配合</th><th>改善結果</th><th>建議移送</th></tr></thead><tbody>
+      ${counsels.length?counsels.map(c=>`<tr><td>${esc(c.date)}</td><td>${esc(c.staff)}</td><td class="wrap">${esc(c.goal)}</td><td>${esc(c.cooperate||"—")}</td><td>${esc(c.result||"—")}</td><td>${c.refer?"是":"—"}</td></tr>`).join(""):'<tr><td colspan="6"><div class="empty">無紀錄</div></td></tr>'}
+    </tbody></table>
+
+    <div class="section-title">七、程序檢核彙整</div>
+    ${evalChecklistSummary(evs)}
+
+    <div class="section-title">八、建議後續處理（由權責人員填寫）</div>
+    <table style="border:1px solid var(--line)">
+      <tr><th style="width:150px">承辦初步意見</th><td style="height:50px">　</td></tr>
+      <tr><th>人事 / 法制審查</th><td style="height:50px">　</td></tr>
+      <tr><th>校事會議 / 教評會決議</th><td style="height:50px">　</td></tr>
+    </table>
+    <div class="disclaimer" style="margin-top:14px">※ 本彙整資料僅為行政輔助，最終認定與處置應依教師法及相關法令所定程序，由權責會議依法決議，並保障當事人正當程序權利。</div>
+  </div>`;
+}
+function evalChecklistSummary(evs){
+  if(!evs.length) return '<div class="hint">無事件可檢核</div>';
+  let rows="";
+  evs.forEach(e=>{
+    const ck=DB.checklist[e.id]||{};
+    const done=CHECKLIST_ITEMS.filter(i=>ck[i.k]).length;
+    const pct=Math.round(done/CHECKLIST_ITEMS.length*100);
+    rows+=`<tr><td>${esc(e.no)}</td><td>${esc(e.type)}</td><td><div class="progress" style="margin:0"><div style="width:${pct}%"></div></div></td><td>${done}/${CHECKLIST_ITEMS.length}（${pct}%）</td></tr>`;
+  });
+  return `<table style="border:1px solid var(--line)"><thead><tr><th>事件編號</th><th>類型</th><th style="width:200px">程序完備度</th><th>完成項目</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function printEvalPackage(){
+  const tid=val("evalTeacher"); if(!tid){toast("請先選擇教師",true);return;}
+  audit("列印教評資料包",teacherName(tid));
+  printHTML("教評會資料包 - "+teacherName(tid), buildEvalHTML(tid,true));
+}
+
+/* =========================================================
+   程序檢核表
+========================================================= */
+function renderChecklistPage(){
+  const opts='<option value="">— 選擇事件 —</option>'+visibleEvents().sort((a,b)=>(b.date||"").localeCompare(a.date)).map(e=>`<option value="${e.id}">${esc(e.no)}｜${esc(teacherName(e.teacherId))}</option>`).join("");
+  document.getElementById("ckEvent").innerHTML=opts;
+  loadChecklist();
+}
+function loadChecklist(){
+  const id=val("ckEvent");
+  const box=document.getElementById("checklistBox");
+  if(!id){ box.innerHTML='<div class="empty">請先選擇事件</div>'; document.getElementById("ckProgress").style.width="0%"; document.getElementById("ckPercent").textContent=""; return; }
+  const ck=DB.checklist[id]||{};
+  box.innerHTML=CHECKLIST_ITEMS.map(i=>`
+    <label><input type="checkbox" class="ckitem" data-k="${i.k}" ${ck[i.k]?"checked":""} onchange="updateCkProgress()">
+      <span class="ck-txt">${i.t}${i.d?`<small>${i.d}</small>`:""}</span></label>`).join("");
+  updateCkProgress();
+}
+function updateCkProgress(){
+  const total=CHECKLIST_ITEMS.length;
+  const done=document.querySelectorAll(".ckitem:checked").length;
+  const pct=Math.round(done/total*100);
+  document.getElementById("ckProgress").style.width=pct+"%";
+  document.getElementById("ckPercent").textContent=`已完成 ${done} / ${total} 項（${pct}%）`;
+}
+function saveChecklist(){
+  const id=val("ckEvent"); if(!id){toast("請先選擇事件",true);return;}
+  const data={}; document.querySelectorAll(".ckitem").forEach(c=>data[c.dataset.k]=c.checked);
+  data._updatedBy=SESSION.name; data._updatedAt=nowStr();
+  DB.checklist[id]=data; persist(); audit("更新程序檢核",DB.events.find(e=>e.id===id)?.no||id); toast("檢核結果已儲存");
+}
+
+/* =========================================================
+   匯出
+========================================================= */
+function exportCSV(){
+  const mask=document.getElementById("maskStudent").checked;
+  const head=["事件編號","日期","時間","地點","涉及教師","紀錄人","類型","嚴重程度","具體事實","影響對象","佐證資料","初步處理","追蹤日期","狀態","機密","備註"];
+  const rows=visibleEvents().map(e=>[e.no,e.date,e.time,e.location,teacherName(e.teacherId),e.recorder,e.type,e.severity,
+    mask?maskNames(e.fact):e.fact,(e.impact||[]).join("/"),mask?maskNames(e.evidence):e.evidence,e.handle,e.followDate,e.status,e.secret?"是":"",e.note]);
+  const csv=[head,...rows].map(r=>r.map(c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  downloadFile("﻿"+csv,"事件紀錄_"+today()+".csv","text/csv");
+  audit("匯出 CSV",`事件 ${rows.length} 筆${mask?"（已去識別化）":""}`);
+}
+function maskNames(txt){ return (txt||"").replace(/([一-龥]{1})([一-龥])([一-龥])/g,(m,a)=>a+"○○"); }
+function exportJSON(){
+  const data={exportedAt:nowStr(),exportedBy:SESSION.name,teachers:DB.teachers,events:visibleEvents(),counsel:DB.counsel,checklist:DB.checklist};
+  downloadFile(JSON.stringify(data,null,2),"教師事件系統備份_"+today()+".json","application/json");
+  audit("匯出 JSON","全部資料");
+}
+function importJSON(ev){
+  const file=ev.target.files[0]; if(!file)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    confirmModal("匯入將<b>覆蓋現有所有資料</b>，確定繼續？",()=>{
+      try{
+        const d=JSON.parse(r.result);
+        DB.teachers=d.teachers||[]; DB.events=d.events||[]; DB.counsel=d.counsel||[]; DB.checklist=d.checklist||{};
+        persist(); audit("匯入 JSON","還原備份資料"); initSelects(); nav("dashboard"); toast("匯入完成");
+      }catch(e){ toast("檔案格式錯誤",true); }
+    });
+  };
+  r.readAsText(file); ev.target.value="";
+}
+function downloadFile(content,name,type){
+  const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=name; a.click(); URL.revokeObjectURL(url);
+}
+function printEventReport(){
+  const list=visibleEvents().sort((a,b)=>(b.date||"").localeCompare(a.date));
+  const html=`<h2>教師事件紀錄總表</h2><div class="hint">產製：${nowStr()}　${esc(SESSION.name)}（${ROLES[SESSION.role].name}）　共 ${list.length} 筆</div>
+    <table style="border:1px solid #ccc;width:100%"><thead><tr><th>編號</th><th>日期</th><th>教師</th><th>類型</th><th>程度</th><th>具體事實</th><th>狀態</th></tr></thead><tbody>
+    ${list.map(e=>`<tr><td>${esc(e.no)}</td><td>${esc(e.date)}</td><td>${esc(teacherName(e.teacherId))}</td><td>${esc(e.type)}</td><td>${esc(e.severity)}</td><td>${esc(e.fact)}</td><td>${esc(e.status)}</td></tr>`).join("")}
+    </tbody></table>`;
+  audit("列印事件總表","共 "+list.length+" 筆");
+  printHTML("教師事件紀錄總表",html);
+}
+function printCounsel(id){
+  const c=DB.counsel.find(x=>x.id===id); const e=DB.events.find(x=>x.id===c.eventId);
+  const html=`<h2>行政晤談 / 輔導改善報告</h2>
+    <table style="border:1px solid #ccc;width:100%">
+      <tr><th style="width:140px">對應事件</th><td>${esc(e?e.no:"—")}（${esc(e?teacherName(e.teacherId):"")}）</td></tr>
+      <tr><th>晤談日期</th><td>${esc(c.date)}</td></tr>
+      <tr><th>晤談人員</th><td>${esc(c.staff)}</td></tr>
+      <tr><th>教師回應</th><td>${esc(c.resp)}</td></tr>
+      <tr><th>改善目標</th><td>${esc(c.goal)}</td></tr>
+      <tr><th>改善措施</th><td>${esc(c.measure)}</td></tr>
+      <tr><th>下次追蹤日期</th><td>${esc(c.nextDate)}</td></tr>
+      <tr><th>是否配合</th><td>${esc(c.cooperate)}</td></tr>
+      <tr><th>改善結果</th><td>${esc(c.result)}</td></tr>
+      <tr><th>建議移送後續程序</th><td>${c.refer?"是":"否"}</td></tr>
+    </table>`;
+  audit("列印輔導報告",c.date);
+  printHTML("輔導改善報告",html);
+}
+function printHTML(title,inner){
+  const area=document.getElementById("printArea");
+  area.innerHTML=`<div style="padding:20px;font-family:'Microsoft JhengHei',sans-serif">${inner}
+    <p style="margin-top:30px;font-size:12px;color:#888;border-top:1px solid #ccc;padding-top:8px">本文件由「學校教師事件紀錄與教評輔助系統」產製，屬機密文件，請依保密原則保管。</p></div>`;
+  const w=window.open("","_blank");
+  w.document.write(`<html><head><title>${title}</title><meta charset="utf-8">
+    <style>body{font-family:'Microsoft JhengHei',sans-serif;color:#1f2a37;font-size:13px}
+    table{border-collapse:collapse;width:100%;margin:10px 0}th,td{border:1px solid #bbb;padding:6px 8px;text-align:left;vertical-align:top}
+    th{background:#f0f3f7}h2{font-size:18px}.section-title{font-size:15px;font-weight:bold;margin:18px 0 8px;border-bottom:2px solid #ccc;padding-bottom:4px}
+    .hint{color:#888;font-size:12px}.badge{padding:1px 6px;border:1px solid #ccc;border-radius:4px;font-size:11px}
+    .timeline{padding-left:14px}.tl-card{border:1px solid #ddd;padding:6px;margin:4px 0}.disclaimer{color:#c0392b;font-size:12px}
+    .progress{background:#eee;height:8px;border-radius:4px}.progress>div{background:#1e7e44;height:100%}.empty{color:#999;padding:10px}
+    ul{margin:4px 0}.alert{padding:8px;border:1px solid #ddd;border-radius:6px;margin:8px 0}.alert.warn{background:#fef6e7}</style></head>
+    <body>${area.innerHTML}</body></html>`);
+  w.document.close(); w.focus(); setTimeout(()=>w.print(),350);
+}
+
+/* =========================================================
+   操作紀錄
+========================================================= */
+function renderAudit(){
+  let h=`<thead><tr><th>時間</th><th>操作人</th><th>角色</th><th>動作</th><th class="wrap">內容</th></tr></thead><tbody>`;
+  if(!DB.audit.length) h+=`<tr><td colspan="5"><div class="empty">尚無操作紀錄</div></td></tr>`;
+  DB.audit.slice(0,300).forEach(a=>h+=`<tr><td>${esc(a.time)}</td><td>${esc(a.user)}</td><td>${esc(a.role)}</td><td><span class="badge b-blue">${esc(a.action)}</span></td><td class="wrap">${esc(a.detail)}</td></tr>`);
+  h+="</tbody>";
+  document.getElementById("auditTable").innerHTML=h;
+}
+
+/* =========================================================
+   設定
+========================================================= */
+function renderSettings(){
+  let h="<thead><tr>"+ROLE_MATRIX[0].map((c,i)=>`<th${i===0?' class="wrap"':''}>${c}</th>`).join("")+"</tr></thead><tbody>";
+  ROLE_MATRIX.slice(1).forEach(r=>h+="<tr>"+r.map((c,i)=>i===0?`<td><b>${c}</b></td>`:`<td style="text-align:center">${c}</td>`).join("")+"</tr>");
+  h+="</tbody>";
+  document.getElementById("roleTable").innerHTML=h;
+  const gi=document.getElementById("gasUrlInput"); if(gi) gi.value=gasUrl();
+  const gs=document.getElementById("gasStatus"); if(gs) gs.textContent=gasUrl()?"目前為雲端模式（附件存於 Google Drive）。":"目前為本機儲存模式（附件存於此瀏覽器）。";
+}
+function wipeAll(){
+  confirmModal("⚠ 此操作將<b>永久清空所有資料</b>（教師、事件、輔導、檢核、稽核），且無法復原。確定？",()=>{
+    Object.values(LS).forEach(k=>{ if(k!==LS.session) localStorage.removeItem(k); });
+    localStorage.removeItem(ATT_META); IDB.clear();
+    reloadDB(); initSelects(); nav("dashboard"); toast("已清空所有資料");
+  });
+}
+
+/* =========================================================
+   Modal 共用
+========================================================= */
+function setModal(title,bodyHTML,buttons){
+  document.getElementById("modalTitle").innerHTML=title;
+  document.getElementById("modalBody").innerHTML=bodyHTML;
+  const foot=document.getElementById("modalFoot"); foot.innerHTML="";
+  (buttons||[]).forEach(b=>{ const btn=document.createElement("button"); btn.className=b.cls; btn.textContent=b.txt; btn.onclick=b.fn; foot.appendChild(btn); });
+  document.getElementById("modalBg").classList.add("open");
+}
+function closeModal(){
+  document.getElementById("modalBg").classList.remove("open");
+  // 若是「新增」但未儲存就關閉，清掉剛上傳的孤兒附件
+  if(EDIT_CTX && EDIT_CTX.isNew && !EDIT_CTX.saved) attDelByOwner(EDIT_CTX.owner);
+  EDIT_CTX=null;
+}
+function confirmModal(msg,onYes){
+  setModal("確認",`<div style="font-size:14px;line-height:1.7">${msg}</div>`,
+    [{txt:"取消",cls:"btn",fn:closeModal},{txt:"確定",cls:"btn danger",fn:()=>{closeModal();onYes();}}]);
+}
+const val = id => { const e=document.getElementById(id); return e?e.value.trim():""; };
+
+document.getElementById("modalBg").addEventListener("click",e=>{ if(e.target.id==="modalBg") closeModal(); });
+
+/* =========================================================
+   示範資料
+========================================================= */
+function loadDemo(force){
+  if(!force && load(LS.seeded,false)) return;
+  const t1={id:uid("t"),name:"王小明",subject:"數學",years:"15 年",title:"專任教師",classOf:"無",contact:"分機 211",note:"",createdBy:"系統",createdAt:nowStr()};
+  const t2={id:uid("t"),name:"陳美華",subject:"國文",years:"8 年",title:"導師",classOf:"二年三班",contact:"分機 233",note:"",createdBy:"系統",createdAt:nowStr()};
+  const t3={id:uid("t"),name:"林志強",subject:"體育",years:"22 年",title:"專任教師",classOf:"無",contact:"分機 250",note:"",createdBy:"系統",createdAt:nowStr()};
+  DB.teachers=[t1,t2,t3];
+  const e1={id:uid("e"),no:"EV-"+today().replace(/-/g,"")+"-001",date:addDays(-20),time:"第二節",location:"二年三班教室",teacherId:t2.id,recorder:"教學組長",type:"教學不力",severity:"中度",fact:"上課多次未依進度授課，且學生反映板書與課本內容不符，經教學組於課堂巡查確認當日未進行該單元教學。",impact:["學生","班級"],evidence:"巡堂紀錄表、3 名學生書面陳述、家長聯絡簿影本。",handle:"已口頭提醒並安排教學組長協助備課。",followDate:addDays(7),status:"追蹤中",secret:false,note:"",recorderUser:"系統",createdAt:nowStr(),history:[{by:"系統",at:nowStr(),note:"建立事件"}]};
+  const e2={id:uid("e"),no:"EV-"+today().replace(/-/g,"")+"-002",date:addDays(-5),time:"午休",location:"操場",teacherId:t3.id,recorder:"學務主任",type:"輔導管教不當",severity:"重大",fact:"體育課中對未完成動作之學生要求全班連坐罰跑十圈，造成一名學生身體不適送保健室，經監視器畫面與保健室紀錄佐證。",impact:["學生","班級","家長"],evidence:"操場監視器畫面、保健室就診紀錄、學生與家長陳述。",handle:"已即時停止並通知家長，安排行政晤談。",followDate:addDays(3),status:"待審核",secret:false,note:"家長已表達關切。",recorderUser:"系統",createdAt:nowStr(),history:[{by:"系統",at:nowStr(),note:"建立事件"}]};
+  const e3={id:uid("e"),no:"EV-"+today().replace(/-/g,"")+"-003",date:addDays(-40),time:"放學後",location:"辦公室",teacherId:t1.id,recorder:"教務主任",type:"行政違失",severity:"輕微",fact:"段考成績登錄逾期三日未完成，經提醒後於當日補登完成。",impact:["行政"],evidence:"成績系統登錄時間紀錄。",handle:"一般行政提醒。",followDate:"",status:"已結案",secret:false,note:"",recorderUser:"系統",createdAt:nowStr(),history:[{by:"系統",at:nowStr(),note:"建立事件"}]};
+  DB.events=[e1,e2,e3];
+  DB.counsel=[{id:uid("c"),eventId:e1.id,date:addDays(-12),staff:"教務主任、教學組長",resp:"教師表示因班級秩序與個人健康因素影響教學進度，願配合改善。",goal:"兩週內依進度完成教學並提交教學計畫。",measure:"由教學組長協助共同備課，每週檢視進度。",nextDate:addDays(2),cooperate:"是",result:"部分改善",refer:false,createdBy:"系統",createdAt:nowStr()}];
+  DB.checklist={[e1.id]:{fact:true,meta:true,evidence:true,notify:true,talk:true,observe:true,plan:true,followup:false,triage:true,privacy:true,procedure:false,_updatedBy:"系統",_updatedAt:nowStr()}};
+  DB.audit=[{id:uid("a"),time:nowStr(),user:"系統",role:"系統管理員",action:"載入示範資料",detail:"3 教師 / 3 事件 / 1 輔導紀錄"}];
+  persist(); save(LS.seeded,true);
+  if(force){ initSelects(); nav("dashboard"); toast("已重新載入示範資料"); }
+}
+function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+
+/* =========================================================
+   啟動
+========================================================= */
+(function init(){
+  reloadDB();
+  if(!load(LS.seeded,false)){ loadDemo(false); reloadDB(); }
+  const s=load(LS.session,null);
+  if(s){ SESSION=s; startApp(); }
+  else { document.getElementById("loginName").focus(); }
+  document.getElementById("loginName").addEventListener("keydown",e=>{ if(e.key==="Enter") doLogin(); });
+})();
+</script>
+</body>
+</html>
